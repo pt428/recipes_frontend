@@ -35,6 +35,19 @@ class RecipeApi {
     return headers;
   }
 
+  // ✅ OPRAVA: Helper pro ošetření síťových chyb (odstraněna rekurze)
+  private async safeFetch(url: string, options?: RequestInit): Promise<Response> {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      // Síťové chyby (Failed to fetch, Connection refused, atd.)
+      if (err instanceof TypeError) {
+        throw new Error("Nepodařilo se připojit k serveru. Zkontrolujte, zda běží backend.");
+      }
+      throw err;
+    }
+  }
+
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       if (response.status === 401) {
@@ -67,7 +80,7 @@ class RecipeApi {
 
   // Auth endpoints
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/login`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/login`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify(credentials),
@@ -76,7 +89,7 @@ class RecipeApi {
   }
 
   async logout(): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/logout`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/logout`, {
       method: "POST",
       headers: this.getHeaders(true),
     });
@@ -84,7 +97,7 @@ class RecipeApi {
   }
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/register`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/register`, {
       method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify(data),
@@ -93,22 +106,41 @@ class RecipeApi {
   }
 
   async getCurrentUser(): Promise<User> {
-    const response = await fetch(`${API_BASE_URL}/user`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/user`, {
       headers: this.getHeaders(true),
     });
     return this.handleResponse<User>(response);
   }
 
+  // ✅ NOVÉ: Aktualizace uživatele
+  async updateUser(data: { name?: string; email?: string; password?: string; password_confirmation?: string }): Promise<{ message: string; user: User }> {
+    const response = await this.safeFetch(`${API_BASE_URL}/user`, {
+      method: "PUT",
+      headers: this.getHeaders(true),
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse<{ message: string; user: User }>(response);
+  }
+
+  // ✅ NOVÉ: Smazání uživatele
+  async deleteUser(password: string): Promise<{ message: string }> {
+    const response = await this.safeFetch(`${API_BASE_URL}/user`, {
+      method: "DELETE",
+      headers: this.getHeaders(true),
+      body: JSON.stringify({ password }),
+    });
+    return this.handleResponse<{ message: string }>(response);
+  }
+
   async getRecipes(): Promise<Recipe[]> {
-    const response = await fetch(`${API_BASE_URL}/recipes`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes`, {
       headers: this.getHeaders(true),
     });
-    // ✅ handleResponse už vrací přímo pole Recipe[]
     return this.handleResponse<Recipe[]>(response);
   }
 
   async updateRecipe(id: number, data: Partial<CreateRecipeData>): Promise<Recipe> {
-    const response = await fetch(`${API_BASE_URL}/recipes/${id}`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes/${id}`, {
       method: "PUT",
       headers: this.getHeaders(true),
       body: JSON.stringify(data),
@@ -117,7 +149,7 @@ class RecipeApi {
   }
 
   async createRecipe(data: CreateRecipeData): Promise<Recipe> {
-    const response = await fetch(`${API_BASE_URL}/recipes`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes`, {
       method: "POST",
       headers: this.getHeaders(true),
       body: JSON.stringify(data),
@@ -126,7 +158,7 @@ class RecipeApi {
   }
 
   async deleteRecipe(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/recipes/${id}`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes/${id}`, {
       method: "DELETE",
       headers: this.getHeaders(true),
     });
@@ -138,7 +170,7 @@ class RecipeApi {
     formData.append("image", file);
 
     const token = localStorage.getItem("token");
-    const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/image`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes/${recipeId}/image`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -151,31 +183,28 @@ class RecipeApi {
   }
 
   async searchRecipes(query: string): Promise<Recipe[]> {
-    const response = await fetch(`${API_BASE_URL}/recipes/search?q=${encodeURIComponent(query)}`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes/search?q=${encodeURIComponent(query)}`, {
       headers: this.getHeaders(true),
     });
     return this.handleResponse<Recipe[]>(response);
   }
 
   async getComments(recipeId: number): Promise<Comment[]> {
-    const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/comments`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes/${recipeId}/comments`, {
       headers: this.getHeaders(true),
     });
     return this.handleResponse<Comment[]>(response);
   }
 
-  // Recipe endpoints
-
   async getRecipe(id: number): Promise<Recipe> {
     const token = localStorage.getItem("token");
-    const response = await fetch(`${API_BASE_URL}/recipes/${id}`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes/${id}`, {
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
     });
 
-    // console.log("getRecipe result:", this.handleResponse<Recipe>(response)); // ✅ Debug
     return this.handleResponse<Recipe>(response);
   }
 
@@ -192,7 +221,7 @@ class RecipeApi {
   }
 
   async getTags(): Promise<Tag[]> {
-    const response = await fetch(`${API_BASE_URL}/tags`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/tags`, {
       headers: this.getHeaders(false),
     });
 
@@ -208,7 +237,7 @@ class RecipeApi {
    * Povolí sdílený odkaz pro recept
    */
   async enableShareLink(recipeId: number): Promise<{ share_url: string; share_token: string }> {
-    const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/share`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes/${recipeId}/share`, {
       method: "POST",
       headers: this.getHeaders(true),
     });
@@ -219,7 +248,7 @@ class RecipeApi {
    * Zruší sdílený odkaz pro recept
    */
   async disableShareLink(recipeId: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/share`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes/${recipeId}/share`, {
       method: "DELETE",
       headers: this.getHeaders(true),
     });
@@ -230,7 +259,7 @@ class RecipeApi {
    * Načte recept pomocí sdíleného tokenu
    */
   async getRecipeByShareToken(token: string): Promise<Recipe> {
-    const response = await fetch(`${API_BASE_URL}/recipes/by-link/${token}`, {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes/by-link/${token}`, {
       headers: this.getHeaders(false), // Veřejný endpoint
     });
     return this.handleResponse<Recipe>(response);
