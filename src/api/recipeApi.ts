@@ -1,9 +1,22 @@
 //frontend\src\api\recipeApi.ts
-import type { Recipe, User, AuthResponse, LoginCredentials, CreateRecipeData, RegisterData, Tag  } from "../types";
+import type { Recipe, User, AuthResponse, LoginCredentials, CreateRecipeData, RegisterData, Tag } from "../types";
 
 // 🔧 Změňte tuto URL na vaši Laravel API URL
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 const STORAGE_URL = "http://127.0.0.1:8000/storage";
+
+// ✅ Vlastní error třída pro validační chyby
+class ValidationError extends Error {
+  public errors: Record<string, string[]>;
+  public status: number;
+
+  constructor(message: string, errors: Record<string, string[]>, status: number) {
+    super(message);
+    this.name = "ValidationError";
+    this.errors = errors;
+    this.status = status;
+  }
+}
 
 class RecipeApi {
   private getHeaders(includeAuth: boolean = false): HeadersInit {
@@ -21,15 +34,23 @@ class RecipeApi {
 
     return headers;
   }
+
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem("token");
         window.location.href = "/";
       }
+
       const error = await response.json().catch(() => ({
         message: "Došlo k chybě při komunikaci se serverem",
       }));
+
+      // ✅ NOVÉ: Pokud je to validační chyba (422), vyhoď ValidationError s errors objektem
+      if (response.status === 422 && error.errors) {
+        throw new ValidationError(error.message, error.errors, response.status);
+      }
+
       throw new Error(error.message || `HTTP error! status: ${response.status}`);
     }
 
@@ -61,6 +82,7 @@ class RecipeApi {
     });
     await this.handleResponse(response);
   }
+
   async register(data: RegisterData): Promise<AuthResponse> {
     const response = await fetch(`${API_BASE_URL}/register`, {
       method: "POST",
@@ -76,6 +98,7 @@ class RecipeApi {
     });
     return this.handleResponse<User>(response);
   }
+
   async getRecipes(): Promise<Recipe[]> {
     const response = await fetch(`${API_BASE_URL}/recipes`, {
       headers: this.getHeaders(true),
@@ -92,6 +115,7 @@ class RecipeApi {
     });
     return this.handleResponse<Recipe>(response);
   }
+
   async createRecipe(data: CreateRecipeData): Promise<Recipe> {
     const response = await fetch(`${API_BASE_URL}/recipes`, {
       method: "POST",
@@ -108,6 +132,7 @@ class RecipeApi {
     });
     await this.handleResponse(response);
   }
+
   async uploadRecipeImage(recipeId: number, file: File): Promise<{ image_url: string }> {
     const formData = new FormData();
     formData.append("image", file);
@@ -124,6 +149,7 @@ class RecipeApi {
 
     return this.handleResponse<{ image_url: string }>(response);
   }
+
   async searchRecipes(query: string): Promise<Recipe[]> {
     const response = await fetch(`${API_BASE_URL}/recipes/search?q=${encodeURIComponent(query)}`, {
       headers: this.getHeaders(true),
@@ -164,26 +190,52 @@ class RecipeApi {
   getTotalTime(recipe: Recipe): number {
     return recipe.prep_time_minutes + recipe.cook_time_minutes;
   }
- 
- 
-  async getTags(): Promise<Tag[]> {
-    console.log("🔧 getTags called, URL:", `${API_BASE_URL}/tags`);
 
+  async getTags(): Promise<Tag[]> {
     const response = await fetch(`${API_BASE_URL}/tags`, {
       headers: this.getHeaders(false),
     });
 
-    console.log("📡 Response status:", response.status);
-
     const json = await response.json();
-    console.log("📦 Raw JSON:", json);
 
     // Laravel vrací { data: [...] }
     const tags = json.data || json;
-    console.log("🏷️ Extracted tags:", tags);
 
     return Array.isArray(tags) ? tags : [];
+  }
+
+  /**
+   * Povolí sdílený odkaz pro recept
+   */
+  async enableShareLink(recipeId: number): Promise<{ share_url: string; share_token: string }> {
+    const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/share`, {
+      method: "POST",
+      headers: this.getHeaders(true),
+    });
+    return this.handleResponse<{ share_url: string; share_token: string }>(response);
+  }
+
+  /**
+   * Zruší sdílený odkaz pro recept
+   */
+  async disableShareLink(recipeId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/share`, {
+      method: "DELETE",
+      headers: this.getHeaders(true),
+    });
+    await this.handleResponse(response);
+  }
+
+  /**
+   * Načte recept pomocí sdíleného tokenu
+   */
+  async getRecipeByShareToken(token: string): Promise<Recipe> {
+    const response = await fetch(`${API_BASE_URL}/recipes/by-link/${token}`, {
+      headers: this.getHeaders(false), // Veřejný endpoint
+    });
+    return this.handleResponse<Recipe>(response);
   }
 }
 
 export const recipeApi = new RecipeApi();
+export { ValidationError };

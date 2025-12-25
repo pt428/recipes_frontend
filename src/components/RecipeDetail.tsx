@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Clock, Users, ChefHat, Edit, Trash2, Plus, Minus,  Check } from 'lucide-react';
+import { ArrowLeft, Clock, Users, ChefHat, Edit, Trash2, Plus, Minus, Check, Globe, Lock, Link2, Copy, X } from 'lucide-react';
 import type { RecipeDetailProps, Tag } from '../types';
 import { recipeApi } from '../api/recipeApi';
 
@@ -16,9 +16,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
         recipe.serving_type === 'pieces' ? '1' : recipe.servings.toString()
     );
 
-    // ✅ NOVÉ: Stavy pro odškrtávání
     const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
     const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set());
+
+    // ✅ NOVÉ: Stavy pro sdílení
+    const [showShareModal, setShowShareModal] = useState<boolean>(false);
+    const [shareUrl, setShareUrl] = useState<string>('');
+    const [isEnablingShare, setIsEnablingShare] = useState<boolean>(false);
+    const [copySuccess, setCopySuccess] = useState<boolean>(false);
 
     const handleDelete = async () => {
         if (!confirm('Opravdu chcete smazat tento recept? Tato akce je nevratná.')) return;
@@ -32,6 +37,92 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
 
     const getOriginalLabel = (): string => {
         return recipe.serving_type === 'pieces' ? 'kusů' : 'porcí';
+    };
+
+    const getVisibilityInfo = (): { icon: React.ReactNode; label: string; color: string } => {
+        switch (recipe.visibility) {
+            case 'public':
+                return {
+                    icon: <Globe className="w-4 h-4" />,
+                    label: 'Veřejný',
+                    color: 'bg-green-500/90'
+                };
+            case 'private':
+                return {
+                    icon: <Lock className="w-4 h-4" />,
+                    label: 'Soukromý',
+                    color: 'bg-gray-600/90'
+                };
+            case 'link':
+                return {
+                    icon: <Link2 className="w-4 h-4" />,
+                    label: 'Sdílený odkaz',
+                    color: 'bg-blue-500/90'
+                };
+            default:
+                return {
+                    icon: <Globe className="w-4 h-4" />,
+                    label: 'Veřejný',
+                    color: 'bg-green-500/90'
+                };
+        }
+    };
+
+    // ✅ NOVÉ: Povolení sdíleného odkazu
+    const handleEnableShare = async () => {
+        setIsEnablingShare(true);
+        try {
+            const response = await recipeApi.enableShareLink(recipe.id);
+            setShareUrl(response.share_url);
+            setShowShareModal(true);
+            // Aktualizujeme recept v paměti
+            recipe.visibility = 'link';
+            recipe.share_token = response.share_token;
+        } catch (err) {
+            console.error('Chyba při povolení sdílení:', err);
+            alert('Nepodařilo se povolit sdílený odkaz.');
+        } finally {
+            setIsEnablingShare(false);
+        }
+    };
+
+    // ✅ NOVÉ: Zrušení sdíleného odkazu
+    const handleDisableShare = async () => {
+        if (!confirm('Opravdu chcete zrušit sdílený odkaz? Odkaz přestane být funkční.')) return;
+
+        try {
+            await recipeApi.disableShareLink(recipe.id);
+            setShareUrl('');
+            setShowShareModal(false);
+            // Aktualizujeme recept v paměti
+            recipe.visibility = 'private';
+            recipe.share_token = null;
+            alert('Sdílený odkaz byl zrušen.');
+        } catch (err) {
+            console.error('Chyba při rušení sdílení:', err);
+            alert('Nepodařilo se zrušit sdílený odkaz.');
+        }
+    };
+
+    // ✅ NOVÉ: Zobrazení existujícího odkazu
+    const handleShowExistingLink = () => {
+        if (recipe.share_token) {
+            const url = `${window.location.origin}/api/recipes/by-link/${recipe.share_token}`;
+            setShareUrl(url);
+            setShowShareModal(true);
+        }
+    };
+
+    // ✅ NOVÉ: Kopírování odkazu do schránky
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+        } catch (err) {
+            console.error('Chyba při kopírování:', err);
+            alert('Nepodařilo se zkopírovat odkaz.');
+        }
     };
 
     const increaseCount = (): void => {
@@ -120,7 +211,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
         return calculatorMode === 'servings' ? currentServings : currentPieces;
     };
 
-    // ✅ NOVÉ: Funkce pro toggle checkboxů
     const toggleIngredient = (id: number): void => {
         const newChecked = new Set(checkedIngredients);
         if (newChecked.has(id)) {
@@ -140,6 +230,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
         }
         setCheckedSteps(newChecked);
     };
+
+    const visibilityInfo = getVisibilityInfo();
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
@@ -166,11 +258,18 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
                             className="w-full h-full object-cover"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+
+                        <div className="absolute top-6 left-6">
+                            <div className={`flex items-center gap-2 px-3 py-1.5 ${visibilityInfo.color} backdrop-blur-sm text-white rounded-full text-sm font-semibold shadow-lg`}>
+                                {visibilityInfo.icon}
+                                <span>{visibilityInfo.label}</span>
+                            </div>
+                        </div>
+
                         <div className="absolute bottom-6 left-6 right-6">
                             <h1 className="text-4xl font-bold text-white mb-3">{recipe.title}</h1>
                             <p className="text-white/90 text-lg mb-3">{recipe.description}</p>
 
-                            {/* Štítky zde */}
                             {recipe.tags && recipe.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-2">
                                     {recipe.tags.map((tag: Tag) => (
@@ -185,27 +284,29 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
                             )}
                         </div>
 
-                        {/* {recipe.tags && recipe.tags.length > 0 && (
-                            <div className="absolute bottom-6 right-6">
-                                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <TagIcon className="w-7 h-7 text-purple-500" />
-                                    Štítky
-                                </h2>
-                                <div className="flex flex-wrap gap-2">
-                                    {recipe.tags.map((tag: Tag) => (
-                                        <div
-                                            key={tag.id}
-                                            className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full font-semibold shadow-md"
-                                        >
-                                            {tag.name}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )} */}
-
+                        {/* ✅ UPRAVENO: Tlačítka pro vlastníka */}
                         {isOwner && (
                             <div className="absolute top-6 right-6 flex gap-3">
+                                {/* Tlačítko pro sdílení */}
+                                {recipe.visibility === 'link' ? (
+                                    <button
+                                        onClick={handleShowExistingLink}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-500/90 backdrop-blur-sm text-white rounded-xl font-semibold shadow-lg hover:bg-blue-600 hover:shadow-xl transform hover:scale-105 transition-all"
+                                    >
+                                        <Link2 className="w-5 h-5" />
+                                        Sdílený odkaz
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleEnableShare}
+                                        disabled={isEnablingShare}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-500/90 backdrop-blur-sm text-white rounded-xl font-semibold shadow-lg hover:bg-blue-600 hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Link2 className="w-5 h-5" />
+                                        {isEnablingShare ? 'Generuji...' : 'Sdílet'}
+                                    </button>
+                                )}
+
                                 <button
                                     onClick={() => onEdit(recipe)}
                                     className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm text-gray-800 rounded-xl font-semibold shadow-lg hover:bg-white hover:shadow-xl transform hover:scale-105 transition-all"
@@ -291,7 +392,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
                                     </div>
                                 </div>
 
-                                {/* ✅ UPRAVENO: Suroviny s checkboxy */}
                                 <div className="bg-orange-50 rounded-2xl p-6">
                                     <ul className="space-y-3">
                                         {recipe.ingredients?.map((ingredient) => (
@@ -299,8 +399,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
                                                 <button
                                                     onClick={() => toggleIngredient(ingredient.id)}
                                                     className={`flex-shrink-0 w-6 h-6 rounded-md border-2 mt-0.5 transition-all ${checkedIngredients.has(ingredient.id)
-                                                            ? 'bg-orange-500 border-orange-500'
-                                                            : 'border-orange-300 hover:border-orange-500'
+                                                        ? 'bg-orange-500 border-orange-500'
+                                                        : 'border-orange-300 hover:border-orange-500'
                                                         }`}
                                                 >
                                                     {checkedIngredients.has(ingredient.id) && (
@@ -326,7 +426,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
                             </div>
                         </div>
 
-                        {/* ✅ UPRAVENO: Postup s checkboxy */}
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                                 <div className="w-1 h-8 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
@@ -343,8 +442,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
                                             <button
                                                 onClick={() => toggleStep(step.id)}
                                                 className={`flex-shrink-0 w-6 h-6 rounded-md border-2 transition-all ${checkedSteps.has(step.id)
-                                                        ? 'bg-green-500 border-green-500'
-                                                        : 'border-gray-300 hover:border-green-500'
+                                                    ? 'bg-green-500 border-green-500'
+                                                    : 'border-gray-300 hover:border-green-500'
                                                     }`}
                                             >
                                                 {checkedSteps.has(step.id) && (
@@ -364,6 +463,60 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
                     </div>
                 </div>
             </div>
+
+            {/* ✅ NOVÝ: Modal pro sdílený odkaz */}
+            {showShareModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <Link2 className="w-6 h-6 text-blue-500" />
+                                Sdílený odkaz
+                            </h3>
+                            <button
+                                onClick={() => setShowShareModal(false)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <X className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        <p className="text-gray-600 mb-4">
+                            Kdokoliv s tímto odkazem může zobrazit váš recept.
+                        </p>
+
+                        <div className="bg-gray-50 rounded-xl p-4 mb-4 break-all">
+                            <code className="text-sm text-gray-700">{shareUrl}</code>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleCopyLink}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-xl font-semibold shadow-lg hover:bg-blue-600 transition-all"
+                            >
+                                {copySuccess ? (
+                                    <>
+                                        <Check className="w-5 h-5" />
+                                        Zkopírováno!
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="w-5 h-5" />
+                                        Kopírovat odkaz
+                                    </>
+                                )}
+                            </button>
+
+                            <button
+                                onClick={handleDisableShare}
+                                className="px-4 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all"
+                            >
+                                Zrušit sdílení
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

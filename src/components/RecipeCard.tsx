@@ -32,6 +32,10 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick }) => {
 
                 <div className="flex items-center justify-between text-gray-600 text-sm">
                     <div className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        <span>{recipe.author?.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
                         <span>{recipeApi.getTotalTime(recipe)} min</span>
                     </div>

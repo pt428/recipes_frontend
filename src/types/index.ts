@@ -53,6 +53,13 @@ export interface Recipe {
   steps?: Step[];
   tags?: Tag[];
 }
+export interface ShareLinkResponse {
+  data: {
+    share_url: string;
+    share_token: string;
+  };
+  message: string;
+}
 export interface CreateRecipeData {
   title: string;
   description?: string;
@@ -142,17 +149,23 @@ export interface StepInput {
   text: string;
 }
 
-export interface FormData {
-    title: string;
-    description: string;
-    category_id?: number;
-    difficulty: string;
-    prep_time_minutes: number;
-    cook_time_minutes: number;
-    servings: number;
-    serving_type: 'servings' | 'pieces';
-    visibility: 'public' | 'private' | 'link';
-    ingredients: IngredientInput[];
-    steps: StepInput[];
-    tags: string[];
+export  interface FormData {
+  title: string;
+  description: string;
+  category_id?: number;
+  difficulty: string;
+  prep_time_minutes: number;
+  cook_time_minutes: number;
+  servings: number;
+  serving_type: "servings" | "pieces";
+  visibility: "public" | "private" | "link";
+  ingredients: IngredientInput[];
+  steps: StepInput[];
+  tags: string[];
+}
+export interface HeaderProps {
+    user: User | null;
+    onLoginClick: () => void;
+    onLogoutClick: () => void;
+    onSearch: (query: string) => void;
 }

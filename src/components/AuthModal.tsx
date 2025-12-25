@@ -1,7 +1,7 @@
 import React, { useState, type ChangeEvent, type FormEvent } from 'react';
-import { Eye, EyeOff } from 'lucide-react'; // ✅ Import ikon
+import { Eye, EyeOff } from 'lucide-react';
 import type { LoginCredentials, RegisterData } from '../types';
-import { recipeApi } from '../api/recipeApi';
+import { recipeApi, ValidationError } from '../api/recipeApi';
 
 interface AuthModalProps {
     onClose: () => void;
@@ -13,11 +13,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
     const [mode, setMode] = useState<'login' | 'register'>('login');
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
+    const [errors, setErrors] = useState<Record<string, string[]>>({});
 
     const [loginEmail, setLoginEmail] = useState<string>('');
     const [loginPassword, setLoginPassword] = useState<string>('');
 
-    // ✅ NOVÉ: Stavy pro zobrazení hesla
     const [showLoginPassword, setShowLoginPassword] = useState<boolean>(false);
     const [showRegisterPassword, setShowRegisterPassword] = useState<boolean>(false);
     const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState<boolean>(false);
@@ -33,12 +33,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
         e.preventDefault();
         setLoading(true);
         setError('');
+        setErrors({});
 
         try {
             await onLogin({ email: loginEmail, password: loginPassword });
             onClose();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Přihlášení se nezdařilo');
+           
+
+            if (err instanceof ValidationError) {
+                
+                setErrors(err.errors);
+                const firstError = Object.values(err.errors)[0];
+                setError(Array.isArray(firstError) ? firstError[0] : err.message);
+            } else {
+                setError(err instanceof Error ? err.message : 'Přihlášení se nezdařilo');
+            }
         } finally {
             setLoading(false);
         }
@@ -48,15 +58,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
         e.preventDefault();
         setLoading(true);
         setError('');
+        setErrors({});
 
         if (registerData.password !== registerData.password_confirmation) {
             setError('Hesla se neshodují');
+            setErrors({ password_confirmation: ['Hesla se neshodují'] });
             setLoading(false);
             return;
         }
 
         if (registerData.password.length < 8) {
             setError('Heslo musí mít alespoň 8 znaků');
+            setErrors({ password: ['Heslo musí mít alespoň 8 znaků'] });
             setLoading(false);
             return;
         }
@@ -67,7 +80,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
             await onLogin({ email: registerData.email, password: registerData.password });
             onClose();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Registrace se nezdařila');
+             
+
+            if (err instanceof ValidationError) {
+                 
+                setErrors(err.errors);
+                const firstError = Object.values(err.errors)[0];
+                setError(Array.isArray(firstError) ? firstError[0] : err.message);
+            } else {
+                setError(err instanceof Error ? err.message : 'Registrace se nezdařila');
+            }
         } finally {
             setLoading(false);
         }
@@ -78,12 +100,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
             ...prev,
             [field]: value,
         }));
+        // Vyčisti chybu pro dané pole při změně
+        if (errors[field]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[field];
+                return newErrors;
+            });
+        }
     };
 
     const switchMode = (): void => {
         setMode(mode === 'login' ? 'register' : 'login');
         setError('');
-        // Reset password visibility při přepnutí
+        setErrors({});
         setShowLoginPassword(false);
         setShowRegisterPassword(false);
         setShowRegisterConfirmPassword(false);
@@ -106,6 +136,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
             ? 'Přihlaste se ke svým receptům'
             : 'Zaregistrujte se a začněte sdílet recepty';
     };
+
+    console.log('📊 Aktuální errors state:', errors);
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -150,14 +182,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
                                 value={loginEmail}
                                 onChange={(e: ChangeEvent<HTMLInputElement>) => setLoginEmail(e.target.value)}
                                 required
-                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-gray-800"
+                                className={`w-full px-4 py-3 rounded-xl border-2 ${errors.email ? 'border-red-400' : 'border-gray-200'
+                                    } focus:border-orange-400 focus:outline-none transition-colors text-gray-800`}
                             />
+                            {errors.email && (
+                                <p className="text-red-600 text-sm mt-1">{errors.email[0]}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 Heslo
                             </label>
-                            {/* ✅ NOVÉ: Relative wrapper pro ikonu */}
                             <div className="relative">
                                 <input
                                     type={showLoginPassword ? 'text' : 'password'}
@@ -165,7 +200,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
                                     value={loginPassword}
                                     onChange={(e: ChangeEvent<HTMLInputElement>) => setLoginPassword(e.target.value)}
                                     required
-                                    className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-gray-800"
+                                    className={`w-full px-4 py-3 pr-12 rounded-xl border-2 ${errors.password ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-gray-800`}
                                 />
                                 <button
                                     type="button"
@@ -179,6 +215,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
                                     )}
                                 </button>
                             </div>
+                            {errors.password && (
+                                <p className="text-red-600 text-sm mt-1">{errors.password[0]}</p>
+                            )}
                         </div>
 
                         <button
@@ -193,16 +232,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
                     <form onSubmit={handleRegisterSubmit} className="space-y-4">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Jméno
+                                Přezdívka
                             </label>
                             <input
                                 type="text"
-                                placeholder="Vaše jméno"
+                                placeholder="Vaše přezdívka"
                                 value={registerData.name}
                                 onChange={(e: ChangeEvent<HTMLInputElement>) => updateRegisterField('name', e.target.value)}
                                 required
-                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-gray-800"
+                                className={`w-full px-4 py-3 rounded-xl border-2 ${errors.name ? 'border-red-400' : 'border-gray-200'
+                                    } focus:border-orange-400 focus:outline-none transition-colors text-gray-800`}
                             />
+                            {errors.name && (
+                                <p className="text-red-600 text-sm mt-1">{errors.name[0]}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -214,14 +257,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
                                 value={registerData.email}
                                 onChange={(e: ChangeEvent<HTMLInputElement>) => updateRegisterField('email', e.target.value)}
                                 required
-                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-gray-800"
+                                className={`w-full px-4 py-3 rounded-xl border-2 ${errors.email ? 'border-red-400' : 'border-gray-200'
+                                    } focus:border-orange-400 focus:outline-none transition-colors text-gray-800`}
                             />
+                            {errors.email && (
+                                <p className="text-red-600 text-sm mt-1">{errors.email[0]}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 Heslo (min. 8 znaků)
                             </label>
-                            {/* ✅ NOVÉ: Password s ikonou */}
                             <div className="relative">
                                 <input
                                     type={showRegisterPassword ? 'text' : 'password'}
@@ -230,7 +276,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
                                     onChange={(e: ChangeEvent<HTMLInputElement>) => updateRegisterField('password', e.target.value)}
                                     required
                                     minLength={8}
-                                    className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-gray-800"
+                                    className={`w-full px-4 py-3 pr-12 rounded-xl border-2 ${errors.password ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-gray-800`}
                                 />
                                 <button
                                     type="button"
@@ -244,12 +291,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
                                     )}
                                 </button>
                             </div>
+                            {errors.password && (
+                                <p className="text-red-600 text-sm mt-1">{errors.password[0]}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 Potvrzení hesla
                             </label>
-                            {/* ✅ NOVÉ: Password confirmation s ikonou */}
                             <div className="relative">
                                 <input
                                     type={showRegisterConfirmPassword ? 'text' : 'password'}
@@ -258,7 +307,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
                                     onChange={(e: ChangeEvent<HTMLInputElement>) => updateRegisterField('password_confirmation', e.target.value)}
                                     required
                                     minLength={8}
-                                    className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-gray-800"
+                                    className={`w-full px-4 py-3 pr-12 rounded-xl border-2 ${errors.password_confirmation ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-gray-800`}
                                 />
                                 <button
                                     type="button"
@@ -272,6 +322,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
                                     )}
                                 </button>
                             </div>
+                            {errors.password_confirmation && (
+                                <p className="text-red-600 text-sm mt-1">{errors.password_confirmation[0]}</p>
+                            )}
                         </div>
 
                         <button

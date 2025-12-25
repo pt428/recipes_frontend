@@ -1,3 +1,4 @@
+//frontend\src\App.tsx
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { AuthModal } from './components/AuthModal';
@@ -182,13 +183,13 @@ function App() {
         onSearch={handleSearch}
       />
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex gap-4 mb-8">
+      <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-6 sm:mb-8">
           <button
             onClick={() => setActiveTab('all')}
-            className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'all'
-              ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
-              : 'bg-white text-gray-600 hover:bg-gray-50'
+            className={`px-4 sm:px-6 py-2 rounded-lg font-semibold transition-all text-sm sm:text-base ${activeTab === 'all'
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
           >
             Všechny recepty
@@ -196,24 +197,22 @@ function App() {
           {user && (
             <button
               onClick={() => setActiveTab('my')}
-              className={`px-6 py-2 rounded-lg font-semibold transition-all ${activeTab === 'my'
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
+              className={`px-4 sm:px-6 py-2 rounded-lg font-semibold transition-all text-sm sm:text-base ${activeTab === 'my'
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
                 }`}
             >
               Moje recepty
             </button>
           )}
-          {/* ✅ ZMĚNA: Tlačítko zobrazeno vždy, ne jen když je user */}
           <button
             onClick={handleCreateRecipe}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all text-sm sm:text-base sm:ml-auto"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             Nový recept
           </button>
         </div>
-
         {loading ? (
           <div className="text-center py-20">
             <div className="inline-block w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
