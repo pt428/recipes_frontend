@@ -116,6 +116,7 @@ export interface RecipeDetailProps {
   onBack: () => void;
   onEdit: (recipe: Recipe) => void; // ✅ Potřebujeme toto
   onDelete: (recipeId: number) => void;
+  onRecipeUpdate?: () => Promise<void>;
 }
 export interface RegisterData {
   name: string;

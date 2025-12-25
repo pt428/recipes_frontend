@@ -1,14 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Clock, Users, ChefHat, Edit, Trash2, Plus, Minus, Check, Globe, Lock, Link2, Copy, X } from 'lucide-react';
-import type { RecipeDetailProps, Tag } from '../types';
+import type { RecipeDetailProps, Tag, Recipe } from '../types';
 import { recipeApi } from '../api/recipeApi';
 
-export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEdit, onDelete, currentUser }) => {
+export const RecipeDetail: React.FC<RecipeDetailProps> = ({
+    recipe: initialRecipe,
+    onBack,
+    onEdit,
+    onDelete,
+    currentUser,
+    onRecipeUpdate // ✅ PŘIDÁNO
+}) => {
+    // ✅ OPRAVA: Použijeme lokální state pro recept, aby ho šlo aktualizovat
+    const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
+
+    // Debug logging
+    console.log('RecipeDetail render - visibility:', recipe.visibility, 'token:', recipe.share_token);
+
     const isOwner: boolean = currentUser?.id === recipe.user_id;
 
     const [calculatorMode] = useState<'servings' | 'pieces'>(
         recipe.serving_type || 'servings'
     );
+
+    // ✅ NOVÉ: Synchronizace s prop změnami
+    useEffect(() => {
+        setRecipe(initialRecipe);
+    }, [initialRecipe]);
     const [servingsMultiplier, setServingsMultiplier] = useState<number>(1);
     const [currentServings, setCurrentServings] = useState<number>(recipe.servings);
     const [currentPieces, setCurrentPieces] = useState<number>(1);
@@ -36,7 +54,33 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
     };
 
     const getOriginalLabel = (): string => {
-        return recipe.serving_type === 'pieces' ? 'kusů' : 'porcí';
+        if (recipe.serving_type === 'pieces') {
+            // Skloňování pro "kusy"
+            const count = recipe.servings;
+            if (count === 1) return 'kus';
+            if (count >= 2 && count <= 4) return 'kusy';
+            return 'kusů';
+        } else {
+            // Skloňování pro "porce"
+            const count = recipe.servings;
+            if (count === 1) return 'porce';
+            if (count >= 2 && count <= 4) return 'porce';
+            return 'porcí';
+        }
+    };
+
+    // ✅ NOVÉ: Překlad obtížnosti do češtiny
+    const getDifficultyLabel = (difficulty: string): string => {
+        switch (difficulty) {
+            case 'easy':
+                return 'Snadné';
+            case 'medium':
+                return 'Střední';
+            case 'hard':
+                return 'Náročné';
+            default:
+                return difficulty;
+        }
     };
 
     const getVisibilityInfo = (): { icon: React.ReactNode; label: string; color: string } => {
@@ -73,11 +117,23 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
         setIsEnablingShare(true);
         try {
             const response = await recipeApi.enableShareLink(recipe.id);
-            setShareUrl(response.share_url);
+
+            // ✅ OPRAVA: Sestavit URL ve frontendu místo použití z backendu
+            const url = `${window.location.origin}/shared/${response.share_token}`;
+            setShareUrl(url);
             setShowShareModal(true);
-            // Aktualizujeme recept v paměti
-            recipe.visibility = 'link';
-            recipe.share_token = response.share_token;
+
+            // ✅ OPRAVA: Aktualizujeme lokální state receptu
+            setRecipe(prev => ({
+                ...prev,
+                visibility: 'link',
+                share_token: response.share_token
+            }));
+
+            // ✅ NOVÉ: Zavoláme callback pro aktualizaci v HomePage
+            if (onRecipeUpdate) {
+                await onRecipeUpdate();
+            }
         } catch (err) {
             console.error('Chyba při povolení sdílení:', err);
             alert('Nepodařilo se povolit sdílený odkaz.');
@@ -91,15 +147,35 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
         if (!confirm('Opravdu chcete zrušit sdílený odkaz? Odkaz přestane být funkční.')) return;
 
         try {
+            console.log('🔴 Calling disableShareLink API...');
             await recipeApi.disableShareLink(recipe.id);
+            console.log('✅ API call successful');
+
+            console.log('🔵 Before update - visibility:', recipe.visibility, 'token:', recipe.share_token);
+
+            // ✅ Aktualizujeme lokální state receptu
+            setRecipe(prev => {
+                const updated = {
+                    ...prev,
+                    visibility: 'private' as 'private' | 'public' | 'link',
+                    share_token: null
+                };
+                console.log('🟢 After update - visibility:', updated.visibility, 'token:', updated.share_token);
+                return updated;
+            });
+
             setShareUrl('');
             setShowShareModal(false);
-            // Aktualizujeme recept v paměti
-            recipe.visibility = 'private';
-            recipe.share_token = null;
-            alert('Sdílený odkaz byl zrušen.');
+
+            console.log('✅ Share disabled successfully');
+
+            // ✅ NOVÉ: Zavoláme callback pro aktualizaci v HomePage
+            if (onRecipeUpdate) {
+                await onRecipeUpdate();
+            }
+
         } catch (err) {
-            console.error('Chyba při rušení sdílení:', err);
+            console.error('❌ Chyba při rušení sdílení:', err);
             alert('Nepodařilo se zrušit sdílený odkaz.');
         }
     };
@@ -231,7 +307,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
         setCheckedSteps(newChecked);
     };
 
+    // ✅ OPRAVA: Vypočítáváme visibilityInfo při každém renderu (nebo když se recipe změní)
     const visibilityInfo = getVisibilityInfo();
+
+    console.log('Current recipe visibility:', recipe.visibility); // Debug
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
@@ -338,7 +417,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, onEd
                         </div>
                         <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center">
                             <ChefHat className="w-6 h-6 text-white mx-auto mb-2" />
-                            <div className="text-white font-semibold">{recipe.difficulty}</div>
+                            <div className="text-white font-semibold">{getDifficultyLabel(recipe.difficulty)}</div>
                             <div className="text-white/80 text-sm">Obtížnost</div>
                         </div>
                     </div>
