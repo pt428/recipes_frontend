@@ -41,6 +41,7 @@ export interface Recipe {
   prep_time_minutes: number;
   cook_time_minutes: number;
   servings: number;
+  serving_type: "servings" | "pieces";
   visibility: "public" | "private" | "link";
   image_path: string | null;
   share_token: string | null;
@@ -60,6 +61,7 @@ export interface CreateRecipeData {
   prep_time_minutes: number;
   cook_time_minutes: number;
   servings: number;
+  serving_type: "servings" | "pieces";
   visibility: "public" | "private" | "link";
   ingredients: {
     amount?: string; // ✅ Optional
@@ -107,4 +109,50 @@ export interface RecipeDetailProps {
   onBack: () => void;
   onEdit: (recipe: Recipe) => void; // ✅ Potřebujeme toto
   onDelete: (recipeId: number) => void;
+}
+export interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+}
+export interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+}
+
+export interface RecipeFormProps {
+  recipe?: Recipe;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+// ✅ Všechny properties jsou required stringy (pro formulář)
+export interface IngredientInput {
+  amount: string;
+  unit: string;
+  name: string;
+  note: string;
+}
+
+export interface StepInput {
+  order_index: number;
+  text: string;
+}
+
+export interface FormData {
+    title: string;
+    description: string;
+    category_id?: number;
+    difficulty: string;
+    prep_time_minutes: number;
+    cook_time_minutes: number;
+    servings: number;
+    serving_type: 'servings' | 'pieces';
+    visibility: 'public' | 'private' | 'link';
+    ingredients: IngredientInput[];
+    steps: StepInput[];
+    tags: string[];
 }

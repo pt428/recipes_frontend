@@ -19,7 +19,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onLoginClick, onLogoutClic
                             <ChefHat className="w-8 h-8 text-white" />
                         </div>
                         <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                            Moje Recepty
+                            Recepty.tisoft.cz
                         </h1>
                     </div>
 

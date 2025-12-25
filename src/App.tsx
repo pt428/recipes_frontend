@@ -18,6 +18,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<'all' | 'my'>('all');
   const [showRecipeForm, setShowRecipeForm] = useState<boolean>(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | undefined>(undefined);
+  const [authContext, setAuthContext] = useState<'default' | 'create-recipe'>('default'); // ✅ NOVÉ
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -47,9 +49,11 @@ function App() {
       setLoading(false);
     }
   };
+ 
   const handleCreateRecipe = (): void => {
     if (!user) {
-      setShowAuthModal(true); // ✅ Zobrazí přihlášení
+      setAuthContext('create-recipe'); // ✅ NOVÉ
+      setShowAuthModal(true);
       return;
     }
     setEditingRecipe(undefined);
@@ -66,7 +70,7 @@ function App() {
     setShowRecipeForm(true);
     setSelectedRecipe(null);
   };
- 
+
 
   const handleDeleteRecipe = async (recipeId: number): Promise<void> => {
     try {
@@ -146,7 +150,7 @@ function App() {
       />
     );
   }
-  
+
   return (
 
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
@@ -161,7 +165,14 @@ function App() {
         />
       )}
       {showAuthModal && (
-        <AuthModal onClose={() => setShowAuthModal(false)} onLogin={handleLogin} />
+        <AuthModal
+          onClose={() => {
+            setShowAuthModal(false);
+            setAuthContext('default'); // ✅ NOVÉ: Reset po zavření
+          }}
+          onLogin={handleLogin}
+          context={authContext} // ✅ NOVÉ
+        />
       )}
 
       <Header

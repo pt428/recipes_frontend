@@ -1,4 +1,5 @@
-import type { Recipe, User, AuthResponse, LoginCredentials, CreateRecipeData  } from "../types";
+//frontend\src\api\recipeApi.ts
+import type { Recipe, User, AuthResponse, LoginCredentials, CreateRecipeData, RegisterData, Tag  } from "../types";
 
 // 🔧 Změňte tuto URL na vaši Laravel API URL
 const API_BASE_URL = "http://127.0.0.1:8000/api";
@@ -59,6 +60,14 @@ class RecipeApi {
       headers: this.getHeaders(true),
     });
     await this.handleResponse(response);
+  }
+  async register(data: RegisterData): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/register`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse<AuthResponse>(response);
   }
 
   async getCurrentUser(): Promise<User> {
@@ -132,13 +141,15 @@ class RecipeApi {
   // Recipe endpoints
 
   async getRecipe(id: number): Promise<Recipe> {
-     const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const response = await fetch(`${API_BASE_URL}/recipes/${id}`, {
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
     });
+
+    // console.log("getRecipe result:", this.handleResponse<Recipe>(response)); // ✅ Debug
     return this.handleResponse<Recipe>(response);
   }
 
@@ -152,6 +163,26 @@ class RecipeApi {
 
   getTotalTime(recipe: Recipe): number {
     return recipe.prep_time_minutes + recipe.cook_time_minutes;
+  }
+ 
+ 
+  async getTags(): Promise<Tag[]> {
+    console.log("🔧 getTags called, URL:", `${API_BASE_URL}/tags`);
+
+    const response = await fetch(`${API_BASE_URL}/tags`, {
+      headers: this.getHeaders(false),
+    });
+
+    console.log("📡 Response status:", response.status);
+
+    const json = await response.json();
+    console.log("📦 Raw JSON:", json);
+
+    // Laravel vrací { data: [...] }
+    const tags = json.data || json;
+    console.log("🏷️ Extracted tags:", tags);
+
+    return Array.isArray(tags) ? tags : [];
   }
 }
 
