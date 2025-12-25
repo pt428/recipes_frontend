@@ -9,12 +9,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     onEdit,
     onDelete,
     currentUser,
-    onRecipeUpdate // ✅ PŘIDÁNO
+    onRecipeUpdate
 }) => {
-    // ✅ OPRAVA: Použijeme lokální state pro recept, aby ho šlo aktualizovat
     const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
 
-    // Debug logging
     console.log('RecipeDetail render - visibility:', recipe.visibility, 'token:', recipe.share_token);
 
     const isOwner: boolean = currentUser?.id === recipe.user_id;
@@ -23,10 +21,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         recipe.serving_type || 'servings'
     );
 
-    // ✅ NOVÉ: Synchronizace s prop změnami
     useEffect(() => {
         setRecipe(initialRecipe);
     }, [initialRecipe]);
+
     const [servingsMultiplier, setServingsMultiplier] = useState<number>(1);
     const [currentServings, setCurrentServings] = useState<number>(recipe.servings);
     const [currentPieces, setCurrentPieces] = useState<number>(1);
@@ -36,8 +34,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
     const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
     const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set());
-
-    // ✅ NOVÉ: Stavy pro sdílení
     const [showShareModal, setShowShareModal] = useState<boolean>(false);
     const [shareUrl, setShareUrl] = useState<string>('');
     const [isEnablingShare, setIsEnablingShare] = useState<boolean>(false);
@@ -55,13 +51,11 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
     const getOriginalLabel = (): string => {
         if (recipe.serving_type === 'pieces') {
-            // Skloňování pro "kusy"
             const count = recipe.servings;
             if (count === 1) return 'kus';
             if (count >= 2 && count <= 4) return 'kusy';
             return 'kusů';
         } else {
-            // Skloňování pro "porce"
             const count = recipe.servings;
             if (count === 1) return 'porce';
             if (count >= 2 && count <= 4) return 'porce';
@@ -69,7 +63,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         }
     };
 
-    // ✅ NOVÉ: Překlad obtížnosti do češtiny
     const getDifficultyLabel = (difficulty: string): string => {
         switch (difficulty) {
             case 'easy':
@@ -112,25 +105,20 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         }
     };
 
-    // ✅ NOVÉ: Povolení sdíleného odkazu
     const handleEnableShare = async () => {
         setIsEnablingShare(true);
         try {
             const response = await recipeApi.enableShareLink(recipe.id);
-
-            // ✅ OPRAVA: Sestavit URL ve frontendu místo použití z backendu
             const url = `${window.location.origin}/shared/${response.share_token}`;
             setShareUrl(url);
             setShowShareModal(true);
 
-            // ✅ OPRAVA: Aktualizujeme lokální state receptu
             setRecipe(prev => ({
                 ...prev,
                 visibility: 'link',
                 share_token: response.share_token
             }));
 
-            // ✅ NOVÉ: Zavoláme callback pro aktualizaci v HomePage
             if (onRecipeUpdate) {
                 await onRecipeUpdate();
             }
@@ -142,7 +130,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         }
     };
 
-    // ✅ NOVÉ: Zrušení sdíleného odkazu
     const handleDisableShare = async () => {
         if (!confirm('Opravdu chcete zrušit sdílený odkaz? Odkaz přestane být funkční.')) return;
 
@@ -151,25 +138,18 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
             await recipeApi.disableShareLink(recipe.id);
             console.log('✅ API call successful');
 
-            console.log('🔵 Before update - visibility:', recipe.visibility, 'token:', recipe.share_token);
-
-            // ✅ Aktualizujeme lokální state receptu
             setRecipe(prev => {
                 const updated = {
                     ...prev,
                     visibility: 'private' as 'private' | 'public' | 'link',
                     share_token: null
                 };
-                console.log('🟢 After update - visibility:', updated.visibility, 'token:', updated.share_token);
                 return updated;
             });
 
             setShareUrl('');
             setShowShareModal(false);
 
-            console.log('✅ Share disabled successfully');
-
-            // ✅ NOVÉ: Zavoláme callback pro aktualizaci v HomePage
             if (onRecipeUpdate) {
                 await onRecipeUpdate();
             }
@@ -180,16 +160,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         }
     };
 
-    // ✅ NOVÉ: Zobrazení existujícího odkazu
     const handleShowExistingLink = () => {
         if (recipe.share_token) {
-            const url = `${window.location.origin}/api/recipes/by-link/${recipe.share_token}`;
+            const url = `${window.location.origin}/shared/${recipe.share_token}`;
             setShareUrl(url);
             setShowShareModal(true);
         }
     };
 
-    // ✅ NOVÉ: Kopírování odkazu do schránky
     const handleCopyLink = async () => {
         try {
             await navigator.clipboard.writeText(shareUrl);
@@ -307,30 +285,30 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         setCheckedSteps(newChecked);
     };
 
-    // ✅ OPRAVA: Vypočítáváme visibilityInfo při každém renderu (nebo když se recipe změní)
     const visibilityInfo = getVisibilityInfo();
-
-    console.log('Current recipe visibility:', recipe.visibility); // Debug
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+            {/* Header - Responsive */}
             <header className="bg-white shadow-md sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto px-4 py-4">
+                <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
                     <div className="flex justify-between items-center">
                         <button
                             onClick={onBack}
-                            className="flex items-center gap-2 text-gray-600 hover:text-orange-600 transition-colors font-semibold"
+                            className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-orange-600 transition-colors font-semibold text-sm sm:text-base"
                         >
-                            <ArrowLeft className="w-5 h-5" />
-                            Zpět na recepty
+                            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <span className="hidden sm:inline">Zpět na recepty</span>
+                            <span className="sm:hidden">Zpět</span>
                         </button>
                     </div>
                 </div>
             </header>
 
-            <div className="max-w-4xl mx-auto px-4 py-8">
-                <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-                    <div className="relative h-80">
+            <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden">
+                    {/* Hero Image - Responsive */}
+                    <div className="relative h-48 sm:h-64 md:h-80">
                         <img
                             src={recipeApi.getImageUrl(recipe.image_path)}
                             alt={recipe.title}
@@ -338,23 +316,30 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
-                        <div className="absolute top-6 left-6">
-                            <div className={`flex items-center gap-2 px-3 py-1.5 ${visibilityInfo.color} backdrop-blur-sm text-white rounded-full text-sm font-semibold shadow-lg`}>
-                                {visibilityInfo.icon}
-                                <span>{visibilityInfo.label}</span>
+                        {/* Visibility Badge - Responsive */}
+                        <div className="absolute top-3 sm:top-6 left-3 sm:left-6">
+                            <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 ${visibilityInfo.color} backdrop-blur-sm text-white rounded-full text-xs sm:text-sm font-semibold shadow-lg`}>
+                                <div className="w-3 h-3 sm:w-4 sm:h-4">{visibilityInfo.icon}</div>
+                                <span className="hidden sm:inline">{visibilityInfo.label}</span>
                             </div>
                         </div>
 
-                        <div className="absolute bottom-6 left-6 right-6">
-                            <h1 className="text-4xl font-bold text-white mb-3">{recipe.title}</h1>
-                            <p className="text-white/90 text-lg mb-3">{recipe.description}</p>
+                        {/* Title and Description - Responsive */}
+                        <div className="absolute bottom-3 sm:bottom-6 left-3 sm:left-6 right-3 sm:right-6">
+                            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-3">
+                                {recipe.title}
+                            </h1>
+                            <p className="text-white/90 text-sm sm:text-base md:text-lg mb-2 sm:mb-3 line-clamp-2">
+                                {recipe.description}
+                            </p>
 
+                            {/* Tags - Responsive */}
                             {recipe.tags && recipe.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                                     {recipe.tags.map((tag: Tag) => (
                                         <div
                                             key={tag.id}
-                                            className="px-3 py-1 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full text-sm font-semibold"
+                                            className="px-2 sm:px-3 py-0.5 sm:py-1 bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-full text-xs sm:text-sm font-semibold"
                                         >
                                             {tag.name}
                                         </div>
@@ -363,177 +348,192 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                             )}
                         </div>
 
-                        {/* ✅ UPRAVENO: Tlačítka pro vlastníka */}
+                        {/* Owner Actions - Responsive */}
                         {isOwner && (
-                            <div className="absolute top-6 right-6 flex gap-3">
-                                {/* Tlačítko pro sdílení */}
+                            <div className="absolute top-3 sm:top-6 right-3 sm:right-6 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                                {/* Share Button */}
                                 {recipe.visibility === 'link' ? (
                                     <button
                                         onClick={handleShowExistingLink}
-                                        className="flex items-center gap-2 px-4 py-2 bg-blue-500/90 backdrop-blur-sm text-white rounded-xl font-semibold shadow-lg hover:bg-blue-600 hover:shadow-xl transform hover:scale-105 transition-all"
+                                        className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-blue-500/90 backdrop-blur-sm text-white rounded-lg sm:rounded-xl font-semibold shadow-lg hover:bg-blue-600 hover:shadow-xl transform hover:scale-105 transition-all text-xs sm:text-sm"
                                     >
-                                        <Link2 className="w-5 h-5" />
-                                        Sdílený odkaz
+                                        <Link2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        <span className="hidden sm:inline">Sdílený odkaz</span>
                                     </button>
                                 ) : (
                                     <button
                                         onClick={handleEnableShare}
                                         disabled={isEnablingShare}
-                                        className="flex items-center gap-2 px-4 py-2 bg-blue-500/90 backdrop-blur-sm text-white rounded-xl font-semibold shadow-lg hover:bg-blue-600 hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-blue-500/90 backdrop-blur-sm text-white rounded-lg sm:rounded-xl font-semibold shadow-lg hover:bg-blue-600 hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                                     >
-                                        <Link2 className="w-5 h-5" />
-                                        {isEnablingShare ? 'Generuji...' : 'Sdílet'}
+                                        <Link2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        <span className="hidden sm:inline">{isEnablingShare ? 'Generuji...' : 'Sdílet'}</span>
                                     </button>
                                 )}
 
+                                {/* Edit Button */}
                                 <button
                                     onClick={() => onEdit(recipe)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur-sm text-gray-800 rounded-xl font-semibold shadow-lg hover:bg-white hover:shadow-xl transform hover:scale-105 transition-all"
+                                    className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-white/90 backdrop-blur-sm text-gray-800 rounded-lg sm:rounded-xl font-semibold shadow-lg hover:bg-white hover:shadow-xl transform hover:scale-105 transition-all text-xs sm:text-sm"
                                 >
-                                    <Edit className="w-5 h-5" />
-                                    Upravit
+                                    <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    <span className="hidden sm:inline">Upravit</span>
                                 </button>
+
+                                {/* Delete Button */}
                                 <button
                                     onClick={handleDelete}
-                                    className="flex items-center gap-2 px-4 py-2 bg-red-500/90 backdrop-blur-sm text-white rounded-xl font-semibold shadow-lg hover:bg-red-600 hover:shadow-xl transform hover:scale-105 transition-all"
+                                    className="flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-red-500/90 backdrop-blur-sm text-white rounded-lg sm:rounded-xl font-semibold shadow-lg hover:bg-red-600 hover:shadow-xl transform hover:scale-105 transition-all text-xs sm:text-sm"
                                 >
-                                    <Trash2 className="w-5 h-5" />
-                                    Smazat
+                                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    <span className="hidden sm:inline">Smazat</span>
                                 </button>
                             </div>
                         )}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 p-6 bg-gradient-to-r from-orange-500 to-red-500">
-                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center">
-                            <Clock className="w-6 h-6 text-white mx-auto mb-2" />
-                            <div className="text-white font-semibold">{recipeApi.getTotalTime(recipe)} min</div>
-                            <div className="text-white/80 text-sm">Čas</div>
+                    {/* Stats Grid - Responsive */}
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4 p-3 sm:p-6 bg-gradient-to-r from-orange-500 to-red-500">
+                        <div className="bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 text-center">
+                            <Clock className="w-4 h-4 sm:w-6 sm:h-6 text-white mx-auto mb-1 sm:mb-2" />
+                            <div className="text-white font-semibold text-xs sm:text-base">
+                                {recipeApi.getTotalTime(recipe)} min
+                            </div>
+                            <div className="text-white/80 text-xs sm:text-sm">Čas</div>
                         </div>
-                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center">
-                            <Users className="w-6 h-6 text-white mx-auto mb-2" />
-                            <div className="text-white font-semibold">{recipe.servings} {getOriginalLabel()}</div>
-                            <div className="text-white/80 text-sm">Množství</div>
+                        <div className="bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 text-center">
+                            <Users className="w-4 h-4 sm:w-6 sm:h-6 text-white mx-auto mb-1 sm:mb-2" />
+                            <div className="text-white font-semibold text-xs sm:text-base">
+                                {recipe.servings} {getOriginalLabel()}
+                            </div>
+                            <div className="text-white/80 text-xs sm:text-sm">Množství</div>
                         </div>
-                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center">
-                            <ChefHat className="w-6 h-6 text-white mx-auto mb-2" />
-                            <div className="text-white font-semibold">{getDifficultyLabel(recipe.difficulty)}</div>
-                            <div className="text-white/80 text-sm">Obtížnost</div>
+                        <div className="bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 text-center">
+                            <ChefHat className="w-4 h-4 sm:w-6 sm:h-6 text-white mx-auto mb-1 sm:mb-2" />
+                            <div className="text-white font-semibold text-xs sm:text-base">
+                                {getDifficultyLabel(recipe.difficulty)}
+                            </div>
+                            <div className="text-white/80 text-xs sm:text-sm">Obtížnost</div>
                         </div>
                     </div>
 
-                    <div className="p-8">
-                        <div className="mb-8">
-                            <div className="mb-8">
-                                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <div className="w-1 h-8 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
-                                    Suroviny
-                                </h2>
+                    {/* Main Content - Responsive */}
+                    <div className="p-4 sm:p-6 md:p-8">
+                        {/* Ingredients Section */}
+                        <div className="mb-6 sm:mb-8">
+                            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                                <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
+                                Suroviny
+                            </h2>
 
-                                <div className="mb-8 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200">
-                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3 sm:gap-4">
-                                            <button
-                                                onClick={decreaseCount}
-                                                disabled={getCurrentCount() <= 1}
-                                                className="p-2 bg-white rounded-full shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                            >
-                                                <Minus className="w-5 h-5 text-blue-600" />
-                                            </button>
-                                            <div className="text-center">
-                                                <input
-                                                    type="number"
-                                                    min="0.1"
-                                                    step="0.1"
-                                                    value={customInput}
-                                                    onChange={(e) => handleCustomInput(e.target.value)}
-                                                    className="text-2xl sm:text-3xl font-bold text-blue-600 text-center w-20 sm:w-24 bg-transparent border-b-2 border-blue-300 focus:border-blue-600 focus:outline-none"
-                                                />
-                                                <div className="text-xs sm:text-sm text-gray-600 mt-1">
-                                                    {getCountLabel()}
-                                                </div>
+                            {/* Servings Calculator - Responsive */}
+                            <div className="mb-4 sm:mb-8 p-3 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl border-2 border-blue-200">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+                                    <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-center">
+                                        <button
+                                            onClick={decreaseCount}
+                                            disabled={getCurrentCount() <= 1}
+                                            className="p-1.5 sm:p-2 bg-white rounded-full shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                        >
+                                            <Minus className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                                        </button>
+                                        <div className="text-center">
+                                            <input
+                                                type="number"
+                                                min="0.1"
+                                                step="0.1"
+                                                value={customInput}
+                                                onChange={(e) => handleCustomInput(e.target.value)}
+                                                className="text-xl sm:text-3xl font-bold text-blue-600 text-center w-16 sm:w-24 bg-transparent border-b-2 border-blue-300 focus:border-blue-600 focus:outline-none"
+                                            />
+                                            <div className="text-xs sm:text-sm text-gray-600 mt-1">
+                                                {getCountLabel()}
                                             </div>
-                                            <button
-                                                onClick={increaseCount}
-                                                className="p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
-                                            >
-                                                <Plus className="w-5 h-5 text-blue-600" />
-                                            </button>
                                         </div>
-                                        {servingsMultiplier !== 1 && (
-                                            <button
-                                                onClick={resetCount}
-                                                className="px-4 py-2 bg-white text-blue-600 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
-                                            >
-                                                Resetovat
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={increaseCount}
+                                            className="p-1.5 sm:p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
+                                        >
+                                            <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                                        </button>
                                     </div>
+                                    {servingsMultiplier !== 1 && (
+                                        <button
+                                            onClick={resetCount}
+                                            className="px-3 sm:px-4 py-2 bg-white text-blue-600 rounded-lg sm:rounded-xl font-semibold shadow-md hover:shadow-lg transition-all w-full sm:w-auto text-sm sm:text-base"
+                                        >
+                                            Resetovat
+                                        </button>
+                                    )}
                                 </div>
+                            </div>
 
-                                <div className="bg-orange-50 rounded-2xl p-6">
-                                    <ul className="space-y-3">
-                                        {recipe.ingredients?.map((ingredient) => (
-                                            <li key={ingredient.id} className="flex items-start gap-3 group">
-                                                <button
-                                                    onClick={() => toggleIngredient(ingredient.id)}
-                                                    className={`flex-shrink-0 w-6 h-6 rounded-md border-2 mt-0.5 transition-all ${checkedIngredients.has(ingredient.id)
+                            {/* Ingredients List - Responsive */}
+                            <div className="bg-orange-50 rounded-xl sm:rounded-2xl p-3 sm:p-6">
+                                <ul className="space-y-2 sm:space-y-3">
+                                    {recipe.ingredients?.map((ingredient) => (
+                                        <li key={ingredient.id} className="flex items-start gap-2 sm:gap-3 group">
+                                            <button
+                                                onClick={() => toggleIngredient(ingredient.id)}
+                                                className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 mt-0.5 transition-all ${checkedIngredients.has(ingredient.id)
                                                         ? 'bg-orange-500 border-orange-500'
                                                         : 'border-orange-300 hover:border-orange-500'
-                                                        }`}
-                                                >
-                                                    {checkedIngredients.has(ingredient.id) && (
-                                                        <Check className="w-5 h-5 text-white" />
-                                                    )}
-                                                </button>
-                                                <span className={`text-gray-700 transition-all ${checkedIngredients.has(ingredient.id) ? 'line-through opacity-50' : ''
-                                                    }`}>
-                                                    {servingsMultiplier !== 1 && ingredient.amount ? (
-                                                        <span className="font-semibold text-blue-600">
-                                                            {calculateAmount(ingredient.amount)}
-                                                        </span>
-                                                    ) : (
-                                                        ingredient.amount
-                                                    )}{' '}
-                                                    {ingredient.unit} {ingredient.name}
-                                                    {ingredient.note && ` - ${ingredient.note}`}
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
+                                                    }`}
+                                            >
+                                                {checkedIngredients.has(ingredient.id) && (
+                                                    <Check className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                                )}
+                                            </button>
+                                            <span className={`text-gray-700 text-sm sm:text-base transition-all ${checkedIngredients.has(ingredient.id) ? 'line-through opacity-50' : ''
+                                                }`}>
+                                                {servingsMultiplier !== 1 && ingredient.amount ? (
+                                                    <span className="font-semibold text-blue-600">
+                                                        {calculateAmount(ingredient.amount)}
+                                                    </span>
+                                                ) : (
+                                                    ingredient.amount
+                                                )}{' '}
+                                                {ingredient.unit} {ingredient.name}
+                                                {ingredient.note && ` - ${ingredient.note}`}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         </div>
 
+                        {/* Steps Section - Responsive */}
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                <div className="w-1 h-8 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
+                            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                                <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
                                 Postup přípravy
                             </h2>
-                            <div className="space-y-4">
+                            <div className="space-y-3 sm:space-y-4">
                                 {recipe.steps?.map((step, index) => (
-                                    <div key={step.id} className="flex gap-4 group">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <div className={`flex-shrink-0 w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg transition-all ${checkedSteps.has(step.id) ? 'opacity-50' : ''
+                                    <div key={step.id} className="flex gap-2 sm:gap-4 group">
+                                        <div className="flex flex-col items-center gap-1.5 sm:gap-2">
+                                            <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg transition-all text-sm sm:text-base ${checkedSteps.has(step.id) ? 'opacity-50' : ''
                                                 }`}>
                                                 {index + 1}
                                             </div>
                                             <button
                                                 onClick={() => toggleStep(step.id)}
-                                                className={`flex-shrink-0 w-6 h-6 rounded-md border-2 transition-all ${checkedSteps.has(step.id)
-                                                    ? 'bg-green-500 border-green-500'
-                                                    : 'border-gray-300 hover:border-green-500'
+                                                className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 transition-all ${checkedSteps.has(step.id)
+                                                        ? 'bg-green-500 border-green-500'
+                                                        : 'border-gray-300 hover:border-green-500'
                                                     }`}
                                             >
                                                 {checkedSteps.has(step.id) && (
-                                                    <Check className="w-5 h-5 text-white" />
+                                                    <Check className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                                 )}
                                             </button>
                                         </div>
-                                        <div className={`flex-1 bg-gray-50 rounded-xl p-4 transition-all ${checkedSteps.has(step.id) ? 'opacity-50' : ''
+                                        <div className={`flex-1 bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 transition-all ${checkedSteps.has(step.id) ? 'opacity-50' : ''
                                             }`}>
-                                            <p className={`text-gray-700 ${checkedSteps.has(step.id) ? 'line-through' : ''
-                                                }`}>{step.text}</p>
+                                            <p className={`text-gray-700 text-sm sm:text-base ${checkedSteps.has(step.id) ? 'line-through' : ''
+                                                }`}>
+                                                {step.text}
+                                            </p>
                                         </div>
                                     </div>
                                 ))}
@@ -543,52 +543,52 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 </div>
             </div>
 
-            {/* ✅ NOVÝ: Modal pro sdílený odkaz */}
+            {/* Share Modal - Responsive */}
             {showShareModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                <Link2 className="w-6 h-6 text-blue-500" />
+                    <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <Link2 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
                                 Sdílený odkaz
                             </h3>
                             <button
                                 onClick={() => setShowShareModal(false)}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors"
                             >
-                                <X className="w-5 h-5 text-gray-500" />
+                                <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
                             </button>
                         </div>
 
-                        <p className="text-gray-600 mb-4">
+                        <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">
                             Kdokoliv s tímto odkazem může zobrazit váš recept.
                         </p>
 
-                        <div className="bg-gray-50 rounded-xl p-4 mb-4 break-all">
-                            <code className="text-sm text-gray-700">{shareUrl}</code>
+                        <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 break-all">
+                            <code className="text-xs sm:text-sm text-gray-700">{shareUrl}</code>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                             <button
                                 onClick={handleCopyLink}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-xl font-semibold shadow-lg hover:bg-blue-600 transition-all"
+                                className="flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-blue-500 text-white rounded-lg sm:rounded-xl font-semibold shadow-lg hover:bg-blue-600 transition-all text-sm sm:text-base"
                             >
                                 {copySuccess ? (
                                     <>
-                                        <Check className="w-5 h-5" />
+                                        <Check className="w-4 h-4 sm:w-5 sm:h-5" />
                                         Zkopírováno!
                                     </>
                                 ) : (
                                     <>
-                                        <Copy className="w-5 h-5" />
-                                        Kopírovat odkaz
+                                        <Copy className="w-4 h-4 sm:w-5 sm:h-5" />
+                                        Kopírovat
                                     </>
                                 )}
                             </button>
 
                             <button
                                 onClick={handleDisableShare}
-                                className="px-4 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all"
+                                className="px-3 sm:px-4 py-2.5 sm:py-3 bg-red-500 text-white rounded-lg sm:rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all text-sm sm:text-base"
                             >
                                 Zrušit sdílení
                             </button>

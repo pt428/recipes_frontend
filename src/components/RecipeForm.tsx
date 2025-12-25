@@ -4,7 +4,6 @@ import type { CreateRecipeData, IngredientInput, Recipe, RecipeFormProps, StepIn
 import { recipeApi } from '../api/recipeApi';
 import { TagInput } from './TagInput';
 
-
 export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSuccess }) => {
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
@@ -36,13 +35,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
         })) || [{ order_index: 1, text: '' }],
         tags: recipe?.tags?.map((t): string => t.name) || [],
     });
+
     const updateServingType = (e: ChangeEvent<HTMLSelectElement>): void => {
         setFormData((prev: FormData): FormData => ({
             ...prev,
             serving_type: e.target.value as 'servings' | 'pieces'
         }));
     };
-    // ✅ Přidejte funkci pro změnu tagů
+
     const updateTags = (tags: string[]): void => {
         setFormData((prev: FormData): FormData => ({
             ...prev,
@@ -168,7 +168,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
         setError('');
 
         try {
-            // ✅ Převeď FormData na CreateRecipeData (prázdné stringy -> undefined)
             const dataToSend: CreateRecipeData = {
                 title: formData.title,
                 description: formData.description || undefined,
@@ -212,10 +211,12 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
-            <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl p-8 w-full max-w-4xl my-8">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl sm:text-3xl font-bold">
+            <div className="min-h-screen flex items-center justify-center p-2 sm:p-4">
+                {/* Modal Container - Responsive */}
+                <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 w-full max-w-4xl my-4 sm:my-8">
+                    {/* Header - Responsive */}
+                    <div className="flex justify-between items-center mb-4 sm:mb-6">
+                        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold">
                             {recipe ? 'Upravit recept' : 'Nový recept'}
                         </h2>
                         <button
@@ -223,46 +224,46 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                             onClick={onClose}
                             className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                         >
-                            <X className="w-6 h-6" />
+                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
                         </button>
                     </div>
 
+                    {/* Error Message - Responsive */}
                     {error && (
-                        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+                        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm sm:text-base">
                             {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-
-                        {/* Obrázek */}
+                    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+                        {/* Image Upload - Responsive */}
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                                 Obrázek receptu
                             </label>
-                            <div className="flex items-center gap-4">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                                 {imagePreview ? (
                                     <div className="relative">
                                         <img
                                             src={imagePreview}
                                             alt="Preview"
-                                            className="w-32 h-32 object-cover rounded-xl"
+                                            className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-xl"
                                         />
                                         <button
                                             type="button"
                                             onClick={removeImage}
                                             className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
                                         >
-                                            <X className="w-4 h-4" />
+                                            <X className="w-3 h-3 sm:w-4 sm:h-4" />
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="w-32 h-32 bg-gray-100 rounded-xl flex items-center justify-center">
-                                        <ImageIcon className="w-12 h-12 text-gray-400" />
+                                    <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-100 rounded-xl flex items-center justify-center">
+                                        <ImageIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400" />
                                     </div>
                                 )}
-                                <label className="cursor-pointer bg-orange-500 text-white px-4 py-2 rounded-xl hover:bg-orange-600 transition-colors flex items-center gap-2">
-                                    <Upload className="w-5 h-5" />
+                                <label className="cursor-pointer bg-orange-500 text-white px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl hover:bg-orange-600 transition-colors flex items-center gap-2 text-sm sm:text-base">
+                                    <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
                                     Nahrát obrázek
                                     <input
                                         type="file"
@@ -274,8 +275,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                             </div>
                         </div>
 
-                        {/* Základní informace */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Basic Info - Responsive Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                            {/* Title */}
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     Název receptu *
@@ -285,11 +287,12 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     required
                                     value={formData.title}
                                     onChange={updateTitle}
-                                    className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
                                     placeholder="Např. Guláš, Palačinky..."
                                 />
                             </div>
 
+                            {/* Description */}
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     Popis
@@ -298,11 +301,12 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     value={formData.description}
                                     onChange={updateDescription}
                                     rows={3}
-                                    className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
                                     placeholder="Krátký popis receptu..."
                                 />
                             </div>
 
+                            {/* Difficulty */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     Obtížnost *
@@ -311,7 +315,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     required
                                     value={formData.difficulty}
                                     onChange={updateDifficulty}
-                                    className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
                                 >
                                     <option value="easy">Snadné</option>
                                     <option value="medium">Střední</option>
@@ -319,6 +323,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                 </select>
                             </div>
 
+                            {/* Visibility */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     Viditelnost *
@@ -327,7 +332,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     required
                                     value={formData.visibility}
                                     onChange={updateVisibility}
-                                    className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
                                 >
                                     <option value="public">Veřejný</option>
                                     <option value="private">Soukromý</option>
@@ -335,6 +340,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                 </select>
                             </div>
 
+                            {/* Prep Time */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     Čas přípravy (min) *
@@ -345,11 +351,12 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     min="0"
                                     value={formData.prep_time_minutes}
                                     onChange={updatePrepTime}
-                                    className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
                                     placeholder="30"
                                 />
                             </div>
 
+                            {/* Cook Time */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     Čas vaření (min) *
@@ -360,12 +367,12 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     min="0"
                                     value={formData.cook_time_minutes}
                                     onChange={updateCookTime}
-                                    className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
                                     placeholder="60"
                                 />
                             </div>
-                       
-                            {/* ✅ NOVÉ: Typ počtu */}
+
+                            {/* Serving Type */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     Typ množství *
@@ -374,13 +381,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     required
                                     value={formData.serving_type}
                                     onChange={updateServingType}
-                                    className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
                                 >
                                     <option value="servings">Porce</option>
                                     <option value="pieces">Kusy</option>
                                 </select>
                             </div>
 
+                            {/* Servings */}
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     {formData.serving_type === 'servings' ? 'Počet porcí *' : 'Počet kusů *'}
@@ -391,18 +399,19 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     min="1"
                                     value={formData.servings}
                                     onChange={updateServings}
-                                    className="w-full px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
                                     placeholder={formData.serving_type === 'servings' ? '4' : '1'}
                                 />
                             </div>
                         </div>
-                            {/* ✅ NOVÉ: Tagy před tlačítky */}
-                            <TagInput
-                                selectedTags={formData.tags}
-                                onChange={updateTags}
-                            />
 
-                        {/* Ingredience */}
+                        {/* Tags */}
+                        <TagInput
+                            selectedTags={formData.tags}
+                            onChange={updateTags}
+                        />
+
+                        {/* Ingredients - Responsive */}
                         <div>
                             <div className="flex justify-between items-center mb-3">
                                 <label className="text-sm font-semibold text-gray-700">
@@ -411,57 +420,102 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                 <button
                                     type="button"
                                     onClick={addIngredient}
-                                    className="flex items-center gap-2 px-3 py-1 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm sm:text-base"
                                 >
-                                    <Plus className="w-4 h-4" />
-                                    Přidat
+                                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                                    <span className="hidden sm:inline">Přidat</span>
                                 </button>
                             </div>
-                            <div className="space-y-3">
+                            <div className="space-y-2 sm:space-y-3">
                                 {formData.ingredients.map((ingredient: IngredientInput, index: number) => (
-                                    <div key={index} className="flex gap-2 items-start">
-                                        <input
-                                            type="text"
-                                            placeholder="Množství"
-                                            value={ingredient.amount}
-                                            onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'amount', e.target.value)}
-                                            className="w-20 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Jednotka"
-                                            value={ingredient.unit}
-                                            onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'unit', e.target.value)}
-                                            className="w-24 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                                        />
-                                        <input
-                                            type="text"
-                                            required
-                                            placeholder="Název *"
-                                            value={ingredient.name}
-                                            onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'name', e.target.value)}
-                                            className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Poznámka"
-                                            value={ingredient.note}
-                                            onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'note', e.target.value)}
-                                            className="w-32 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={(): void => removeIngredient(index)}
-                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                    <div key={index} className="space-y-2">
+                                        {/* Mobile: Stack vertically */}
+                                        <div className="flex sm:hidden flex-col gap-2">
+                                            <div className="flex gap-1.5">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Množ."
+                                                    value={ingredient.amount}
+                                                    onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'amount', e.target.value)}
+                                                    className="w-14 px-1.5 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Jedn."
+                                                    value={ingredient.unit}
+                                                    onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'unit', e.target.value)}
+                                                    className="w-14 px-1.5 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    placeholder="Název *"
+                                                    value={ingredient.name}
+                                                    onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'name', e.target.value)}
+                                                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={(): void => removeIngredient(index)}
+                                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Poznámka (volitelné)"
+                                                value={ingredient.note}
+                                                onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'note', e.target.value)}
+                                                className="w-full px-2 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
+                                            />
+                                        </div>
+
+                                        {/* Desktop: Horizontal */}
+                                        <div className="hidden sm:flex gap-2 items-start">
+                                            <input
+                                                type="text"
+                                                placeholder="Množství"
+                                                value={ingredient.amount}
+                                                onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'amount', e.target.value)}
+                                                className="w-20 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Jednotka"
+                                                value={ingredient.unit}
+                                                onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'unit', e.target.value)}
+                                                className="w-24 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                            />
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="Název *"
+                                                value={ingredient.name}
+                                                onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'name', e.target.value)}
+                                                className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Poznámka"
+                                                value={ingredient.note}
+                                                onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'note', e.target.value)}
+                                                className="w-32 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={(): void => removeIngredient(index)}
+                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Postup */}
+                        {/* Steps - Responsive */}
                         <div>
                             <div className="flex justify-between items-center mb-3">
                                 <label className="text-sm font-semibold text-gray-700">
@@ -470,16 +524,16 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                 <button
                                     type="button"
                                     onClick={addStep}
-                                    className="flex items-center gap-2 px-3 py-1 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm sm:text-base"
                                 >
-                                    <Plus className="w-4 h-4" />
-                                    Přidat krok
+                                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                                    <span className="hidden sm:inline">Přidat krok</span>
                                 </button>
                             </div>
-                            <div className="space-y-3">
+                            <div className="space-y-2 sm:space-y-3">
                                 {formData.steps.map((step: StepInput, index: number) => (
                                     <div key={index} className="flex gap-2 items-start">
-                                        <div className="flex-shrink-0 w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold mt-1">
+                                        <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold mt-1 text-sm sm:text-base">
                                             {index + 1}
                                         </div>
                                         <textarea
@@ -488,39 +542,37 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                             value={step.text}
                                             onChange={(e: ChangeEvent<HTMLTextAreaElement>): void => updateStep(index, e.target.value)}
                                             rows={2}
-                                            className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                            className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
                                         />
                                         <button
                                             type="button"
                                             onClick={(): void => removeStep(index)}
                                             className="p-2 text-red-500 hover:bg-red-50 rounded-lg mt-1 transition-colors"
                                         >
-                                            <Trash2 className="w-5 h-5" />
+                                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                                         </button>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Tlačítka */}
-                        <div className="flex gap-3 pt-4">
+                        {/* Action Buttons - Responsive */}
+                        <div className="flex flex-col sm:flex-row gap-3 pt-4">
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-semibold disabled:opacity-50 hover:shadow-lg transition-all"
+                                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold disabled:opacity-50 hover:shadow-lg transition-all text-sm sm:text-base"
                             >
                                 {loading ? 'Ukládání...' : recipe ? 'Uložit změny' : 'Vytvořit recept'}
                             </button>
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+                                className="flex-1 bg-gray-200 text-gray-700 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-300 transition-colors text-sm sm:text-base"
                             >
                                 Zrušit
                             </button>
                         </div>
-
-
                     </form>
                 </div>
             </div>
