@@ -1,20 +1,17 @@
 // frontend/src/pages/ProfileEditPage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { recipeApi, ValidationError } from '../api/recipeApi';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, ChefHat } from 'lucide-react';
 import type { User } from '../types';
 
-interface ProfileEditPageProps {
-    user: User;
-    onUserUpdate: (user: User) => void;
-}
-
-export function ProfileEditPage({ user, onUserUpdate }: ProfileEditPageProps) {
+export function ProfileEditPage() {
     const navigate = useNavigate();
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState({
-        name: user.name,
-        email: user.email,
+        name: '',
+        email: '',
         password: '',
         password_confirmation: '',
     });
@@ -22,8 +19,40 @@ export function ProfileEditPage({ user, onUserUpdate }: ProfileEditPageProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
 
+    // Načti aktuálního uživatele
+    useEffect(() => {
+        const loadUser = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                navigate('/');
+                return;
+            }
+
+            try {
+                const userData = await recipeApi.getCurrentUser();
+                setUser(userData);
+                setFormData({
+                    name: userData.name,
+                    email: userData.email,
+                    password: '',
+                    password_confirmation: '',
+                });
+            } catch (err) {
+                console.error('Chyba při načítání uživatele:', err);
+                navigate('/');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadUser();
+    }, [navigate]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!user) return;
+
         setErrors({});
         setSuccessMessage('');
         setIsLoading(true);
@@ -54,11 +83,13 @@ export function ProfileEditPage({ user, onUserUpdate }: ProfileEditPageProps) {
             const response = await recipeApi.updateUser(updateData);
 
             setSuccessMessage(response.message);
-            onUserUpdate(response.user);
+            setUser(response.user);
 
             // Vyčisti hesla
             setFormData(prev => ({
                 ...prev,
+                name: response.user.name,
+                email: response.user.email,
                 password: '',
                 password_confirmation: '',
             }));
@@ -79,133 +110,164 @@ export function ProfileEditPage({ user, onUserUpdate }: ProfileEditPageProps) {
         }
     };
 
-    return (
-        <div className="max-w-2xl mx-auto px-4 py-8">
-            {/* Header */}
-            <div className="mb-6">
-                <button
-                    onClick={() => navigate('/')}
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    Zpět na hlavní stránku
-                </button>
-                <h1 className="text-3xl font-bold text-gray-800">Upravit profil</h1>
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="inline-block w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="mt-4 text-gray-600">Načítání...</p>
+                </div>
             </div>
+        );
+    }
 
-            {/* Success message */}
-            {successMessage && (
-                <div className="mb-6 p-4 bg-green-100 border border-green-200 text-green-700 rounded-xl">
-                    {successMessage}
-                </div>
-            )}
+    if (!user) {
+        return null;
+    }
 
-            {/* General error */}
-            {errors.general && (
-                <div className="mb-6 p-4 bg-red-100 border border-red-200 text-red-700 rounded-xl">
-                    {errors.general[0]}
-                </div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-6 space-y-6">
-                {/* Name */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Uživatelské jméno
-                    </label>
-                    <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                        placeholder="Vaše jméno"
-                    />
-                    {errors.name && (
-                        <p className="mt-2 text-sm text-red-600">{errors.name[0]}</p>
-                    )}
-                </div>
-
-                {/* Email */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email
-                    </label>
-                    <input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                        placeholder="vas@email.cz"
-                    />
-                    {errors.email && (
-                        <p className="mt-2 text-sm text-red-600">{errors.email[0]}</p>
-                    )}
-                </div>
-
-                {/* Password section */}
-                <div className="border-t pt-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                        Změna hesla
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                        Vyplňte pouze pokud chcete změnit heslo
-                    </p>
-
-                    <div className="space-y-4">
-                        {/* New password */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Nové heslo
-                            </label>
-                            <input
-                                type="password"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                                placeholder="Minimálně 8 znaků"
-                            />
-                            {errors.password && (
-                                <p className="mt-2 text-sm text-red-600">{errors.password[0]}</p>
-                            )}
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+            {/* Simple Header */}
+            <header className="bg-white shadow-md">
+                <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="bg-gradient-to-br from-orange-500 to-red-500 p-2 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg">
+                            <ChefHat className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                         </div>
-
-                        {/* Confirm password */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Potvrzení hesla
-                            </label>
-                            <input
-                                type="password"
-                                value={formData.password_confirmation}
-                                onChange={(e) => setFormData({ ...formData, password_confirmation: e.target.value })}
-                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                                placeholder="Zadejte heslo znovu"
-                            />
-                        </div>
+                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                            Recepty.tisoft.cz
+                        </h1>
                     </div>
                 </div>
+            </header>
 
-                {/* Submit button */}
-                <div className="flex gap-3 pt-4">
+            <div className="max-w-2xl mx-auto px-4 py-8">
+                {/* Header */}
+                <div className="mb-6">
                     <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                    >
-                        <Save className="w-5 h-5" />
-                        {isLoading ? 'Ukládám...' : 'Uložit změny'}
-                    </button>
-
-                    <button
-                        type="button"
                         onClick={() => navigate('/')}
-                        className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+                        className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
                     >
-                        Zrušit
+                        <ArrowLeft className="w-5 h-5" />
+                        Zpět na hlavní stránku
                     </button>
+                    <h1 className="text-3xl font-bold text-gray-800">Upravit profil</h1>
                 </div>
-            </form>
+
+                {/* Success message */}
+                {successMessage && (
+                    <div className="mb-6 p-4 bg-green-100 border border-green-200 text-green-700 rounded-xl">
+                        {successMessage}
+                    </div>
+                )}
+
+                {/* General error */}
+                {errors.general && (
+                    <div className="mb-6 p-4 bg-red-100 border border-red-200 text-red-700 rounded-xl">
+                        {errors.general[0]}
+                    </div>
+                )}
+
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-6 space-y-6">
+                    {/* Name */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Uživatelské jméno
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                            placeholder="Vaše jméno"
+                        />
+                        {errors.name && (
+                            <p className="mt-2 text-sm text-red-600">{errors.name[0]}</p>
+                        )}
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Email
+                        </label>
+                        <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                            placeholder="vas@email.cz"
+                        />
+                        {errors.email && (
+                            <p className="mt-2 text-sm text-red-600">{errors.email[0]}</p>
+                        )}
+                    </div>
+
+                    {/* Password section */}
+                    <div className="border-t pt-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                            Změna hesla
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Vyplňte pouze pokud chcete změnit heslo
+                        </p>
+
+                        <div className="space-y-4">
+                            {/* New password */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Nové heslo
+                                </label>
+                                <input
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    placeholder="Minimálně 8 znaků"
+                                />
+                                {errors.password && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.password[0]}</p>
+                                )}
+                            </div>
+
+                            {/* Confirm password */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Potvrzení hesla
+                                </label>
+                                <input
+                                    type="password"
+                                    value={formData.password_confirmation}
+                                    onChange={(e) => setFormData({ ...formData, password_confirmation: e.target.value })}
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                    placeholder="Zadejte heslo znovu"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Submit button */}
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        >
+                            <Save className="w-5 h-5" />
+                            {isLoading ? 'Ukládám...' : 'Uložit změny'}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => navigate('/')}
+                            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+                        >
+                            Zrušit
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }
