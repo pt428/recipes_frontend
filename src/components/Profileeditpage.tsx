@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { recipeApi, ValidationError } from '../api/recipeApi';
-import { ArrowLeft, Save, ChefHat } from 'lucide-react';
+import { ArrowLeft, Save, ChefHat, Eye, EyeOff } from 'lucide-react';
 import type { User } from '../types';
 
 export function ProfileEditPage() {
@@ -18,6 +18,8 @@ export function ProfileEditPage() {
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
 
     // Načti aktuálního uživatele
     useEffect(() => {
@@ -219,13 +221,26 @@ export function ProfileEditPage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Nové heslo
                                 </label>
-                                <input
-                                    type="password"
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                                    placeholder="Minimálně 8 znaků"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                        placeholder="Minimálně 8 znaků"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="w-5 h-5" />
+                                        ) : (
+                                            <Eye className="w-5 h-5" />
+                                        )}
+                                    </button>
+                                </div>
                                 {errors.password && (
                                     <p className="mt-2 text-sm text-red-600">{errors.password[0]}</p>
                                 )}
@@ -236,13 +251,26 @@ export function ProfileEditPage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Potvrzení hesla
                                 </label>
-                                <input
-                                    type="password"
-                                    value={formData.password_confirmation}
-                                    onChange={(e) => setFormData({ ...formData, password_confirmation: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
-                                    placeholder="Zadejte heslo znovu"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type={showPasswordConfirmation ? "text" : "password"}
+                                        value={formData.password_confirmation}
+                                        onChange={(e) => setFormData({ ...formData, password_confirmation: e.target.value })}
+                                        className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                        placeholder="Zadejte heslo znovu"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                                    >
+                                        {showPasswordConfirmation ? (
+                                            <EyeOff className="w-5 h-5" />
+                                        ) : (
+                                            <Eye className="w-5 h-5" />
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

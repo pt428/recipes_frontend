@@ -1,12 +1,13 @@
+
 import React, { useState, type ChangeEvent, type FormEvent } from 'react';
 import { X, Plus, Trash2, Upload, Image as ImageIcon } from 'lucide-react';
 import type { CreateRecipeData, IngredientInput, Recipe, RecipeFormProps, StepInput, FormData } from '../types';
-import { recipeApi } from '../api/recipeApi';
+import { recipeApi, ValidationError } from '../api/recipeApi';
 import { TagInput } from './TagInput';
 
 export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSuccess }) => {
     const [loading, setLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string>('');
+    const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [imageFile, setImageFile] = useState<File | null>(null);
 
     const [imagePreview, setImagePreview] = useState<string | null>(
@@ -17,7 +18,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
         title: recipe?.title || '',
         description: recipe?.description || '',
         category_id: recipe?.category_id || undefined,
-        difficulty: recipe?.difficulty || 'snadné',
+        difficulty: recipe?.difficulty || 'easy',
         prep_time_minutes: recipe?.prep_time_minutes || 0,
         cook_time_minutes: recipe?.cook_time_minutes || 0,
         servings: recipe?.servings || 4,
@@ -41,6 +42,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             ...prev,
             serving_type: e.target.value as 'servings' | 'pieces'
         }));
+        // Vyčisti chybu při změně
+        if (errors.serving_type) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.serving_type;
+                return newErrors;
+            });
+        }
     };
 
     const updateTags = (tags: string[]): void => {
@@ -59,6 +68,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                 setImagePreview(reader.result as string);
             };
             reader.readAsDataURL(file);
+            // Vyčisti chybu obrázku
+            if (errors.image) {
+                setErrors(prev => {
+                    const newErrors = { ...prev };
+                    delete newErrors.image;
+                    return newErrors;
+                });
+            }
         }
     };
 
@@ -72,6 +89,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             ...prev,
             title: e.target.value
         }));
+        // Vyčisti chybu při změně
+        if (errors.title) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.title;
+                return newErrors;
+            });
+        }
     };
 
     const updateDescription = (e: ChangeEvent<HTMLTextAreaElement>): void => {
@@ -79,6 +104,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             ...prev,
             description: e.target.value
         }));
+        // Vyčisti chybu při změně
+        if (errors.description) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.description;
+                return newErrors;
+            });
+        }
     };
 
     const updateDifficulty = (e: ChangeEvent<HTMLSelectElement>): void => {
@@ -86,6 +119,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             ...prev,
             difficulty: e.target.value
         }));
+        // Vyčisti chybu při změně
+        if (errors.difficulty) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.difficulty;
+                return newErrors;
+            });
+        }
     };
 
     const updateVisibility = (e: ChangeEvent<HTMLSelectElement>): void => {
@@ -93,6 +134,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             ...prev,
             visibility: e.target.value as 'public' | 'private' | 'link'
         }));
+        // Vyčisti chybu při změně
+        if (errors.visibility) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.visibility;
+                return newErrors;
+            });
+        }
     };
 
     const updatePrepTime = (e: ChangeEvent<HTMLInputElement>): void => {
@@ -100,6 +149,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             ...prev,
             prep_time_minutes: parseInt(e.target.value) || 0
         }));
+        // Vyčisti chybu při změně
+        if (errors.prep_time_minutes) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.prep_time_minutes;
+                return newErrors;
+            });
+        }
     };
 
     const updateCookTime = (e: ChangeEvent<HTMLInputElement>): void => {
@@ -107,6 +164,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             ...prev,
             cook_time_minutes: parseInt(e.target.value) || 0
         }));
+        // Vyčisti chybu při změně
+        if (errors.cook_time_minutes) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.cook_time_minutes;
+                return newErrors;
+            });
+        }
     };
 
     const updateServings = (e: ChangeEvent<HTMLInputElement>): void => {
@@ -114,6 +179,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             ...prev,
             servings: parseInt(e.target.value) || 1
         }));
+        // Vyčisti chybu při změně
+        if (errors.servings) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.servings;
+                return newErrors;
+            });
+        }
     };
 
     const addIngredient = (): void => {
@@ -136,6 +209,15 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             newIngredients[index] = { ...newIngredients[index], [field]: value };
             return { ...prev, ingredients: newIngredients };
         });
+        // Vyčisti chybu ingredience při změně
+        const errorKey = `ingredients.${index}.${field}`;
+        if (errors[errorKey]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[errorKey];
+                return newErrors;
+            });
+        }
     };
 
     const addStep = (): void => {
@@ -160,12 +242,21 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             newSteps[index] = { ...newSteps[index], text };
             return { ...prev, steps: newSteps };
         });
+        // Vyčisti chybu kroku při změně
+        const errorKey = `steps.${index}.text`;
+        if (errors[errorKey]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[errorKey];
+                return newErrors;
+            });
+        }
     };
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
         setLoading(true);
-        setError('');
+        setErrors({});
 
         try {
             const dataToSend: CreateRecipeData = {
@@ -203,7 +294,11 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
             onSuccess();
             onClose();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Nepodařilo se uložit recept');
+            if (err instanceof ValidationError) {
+                setErrors(err.errors);
+            } else {
+                setErrors({ general: [err instanceof Error ? err.message : 'Nepodařilo se uložit recept'] });
+            }
         } finally {
             setLoading(false);
         }
@@ -228,10 +323,10 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                         </button>
                     </div>
 
-                    {/* Error Message - Responsive */}
-                    {error && (
+                    {/* General Error Message - Responsive */}
+                    {errors.general && (
                         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm sm:text-base">
-                            {error}
+                            {errors.general[0]}
                         </div>
                     )}
 
@@ -273,6 +368,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     />
                                 </label>
                             </div>
+                            {errors.image && (
+                                <p className="mt-2 text-sm text-red-600">{errors.image[0]}</p>
+                            )}
                         </div>
 
                         {/* Basic Info - Responsive Grid */}
@@ -287,9 +385,13 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     required
                                     value={formData.title}
                                     onChange={updateTitle}
-                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
+                                    className={`w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 ${errors.title ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base`}
                                     placeholder="Např. Guláš, Palačinky..."
                                 />
+                                {errors.title && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.title[0]}</p>
+                                )}
                             </div>
 
                             {/* Description */}
@@ -301,9 +403,13 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     value={formData.description}
                                     onChange={updateDescription}
                                     rows={3}
-                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
+                                    className={`w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 ${errors.description ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base`}
                                     placeholder="Krátký popis receptu..."
                                 />
+                                {errors.description && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.description[0]}</p>
+                                )}
                             </div>
 
                             {/* Difficulty */}
@@ -315,12 +421,16 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     required
                                     value={formData.difficulty}
                                     onChange={updateDifficulty}
-                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
+                                    className={`w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 ${errors.difficulty ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base`}
                                 >
                                     <option value="easy">Snadné</option>
                                     <option value="medium">Střední</option>
                                     <option value="hard">Náročné</option>
                                 </select>
+                                {errors.difficulty && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.difficulty[0]}</p>
+                                )}
                             </div>
 
                             {/* Visibility */}
@@ -332,12 +442,16 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     required
                                     value={formData.visibility}
                                     onChange={updateVisibility}
-                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
+                                    className={`w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 ${errors.visibility ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base`}
                                 >
                                     <option value="public">Veřejný</option>
                                     <option value="private">Soukromý</option>
                                     <option value="link">Sdílený odkaz</option>
                                 </select>
+                                {errors.visibility && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.visibility[0]}</p>
+                                )}
                             </div>
 
                             {/* Prep Time */}
@@ -351,9 +465,13 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     min="0"
                                     value={formData.prep_time_minutes}
                                     onChange={updatePrepTime}
-                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
+                                    className={`w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 ${errors.prep_time_minutes ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base`}
                                     placeholder="30"
                                 />
+                                {errors.prep_time_minutes && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.prep_time_minutes[0]}</p>
+                                )}
                             </div>
 
                             {/* Cook Time */}
@@ -367,9 +485,13 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     min="0"
                                     value={formData.cook_time_minutes}
                                     onChange={updateCookTime}
-                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
+                                    className={`w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 ${errors.cook_time_minutes ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base`}
                                     placeholder="60"
                                 />
+                                {errors.cook_time_minutes && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.cook_time_minutes[0]}</p>
+                                )}
                             </div>
 
                             {/* Serving Type */}
@@ -381,11 +503,15 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     required
                                     value={formData.serving_type}
                                     onChange={updateServingType}
-                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
+                                    className={`w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 ${errors.serving_type ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base`}
                                 >
                                     <option value="servings">Porce</option>
                                     <option value="pieces">Kusy</option>
                                 </select>
+                                {errors.serving_type && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.serving_type[0]}</p>
+                                )}
                             </div>
 
                             {/* Servings */}
@@ -399,9 +525,13 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     min="1"
                                     value={formData.servings}
                                     onChange={updateServings}
-                                    className="w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
+                                    className={`w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 ${errors.servings ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base`}
                                     placeholder={formData.serving_type === 'servings' ? '4' : '1'}
                                 />
+                                {errors.servings && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.servings[0]}</p>
+                                )}
                             </div>
                         </div>
 
@@ -426,6 +556,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     <span className="hidden sm:inline">Přidat</span>
                                 </button>
                             </div>
+                            {errors.ingredients && (
+                                <p className="mb-2 text-sm text-red-600">{errors.ingredients[0]}</p>
+                            )}
                             <div className="space-y-2 sm:space-y-3">
                                 {formData.ingredients.map((ingredient: IngredientInput, index: number) => (
                                     <div key={index} className="space-y-2">
@@ -437,14 +570,16 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                                     placeholder="Množ."
                                                     value={ingredient.amount}
                                                     onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'amount', e.target.value)}
-                                                    className="w-14 px-1.5 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
+                                                    className={`w-14 px-1.5 py-2 rounded-lg border-2 ${errors[`ingredients.${index}.amount`] ? 'border-red-400' : 'border-gray-200'
+                                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm`}
                                                 />
                                                 <input
                                                     type="text"
                                                     placeholder="Jedn."
                                                     value={ingredient.unit}
                                                     onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'unit', e.target.value)}
-                                                    className="w-14 px-1.5 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
+                                                    className={`w-14 px-1.5 py-2 rounded-lg border-2 ${errors[`ingredients.${index}.unit`] ? 'border-red-400' : 'border-gray-200'
+                                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm`}
                                                 />
                                                 <input
                                                     type="text"
@@ -452,7 +587,8 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                                     placeholder="Název *"
                                                     value={ingredient.name}
                                                     onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'name', e.target.value)}
-                                                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
+                                                    className={`flex-1 min-w-0 px-2 py-2 rounded-lg border-2 ${errors[`ingredients.${index}.name`] ? 'border-red-400' : 'border-gray-200'
+                                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm`}
                                                 />
                                                 <button
                                                     type="button"
@@ -467,7 +603,8 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                                 placeholder="Poznámka (volitelné)"
                                                 value={ingredient.note}
                                                 onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'note', e.target.value)}
-                                                className="w-full px-2 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
+                                                className={`w-full px-2 py-2 rounded-lg border-2 ${errors[`ingredients.${index}.note`] ? 'border-red-400' : 'border-gray-200'
+                                                    } focus:border-orange-400 focus:outline-none transition-colors text-sm`}
                                             />
                                         </div>
 
@@ -478,14 +615,16 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                                 placeholder="Množství"
                                                 value={ingredient.amount}
                                                 onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'amount', e.target.value)}
-                                                className="w-20 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                                className={`w-20 px-3 py-2 rounded-lg border-2 ${errors[`ingredients.${index}.amount`] ? 'border-red-400' : 'border-gray-200'
+                                                    } focus:border-orange-400 focus:outline-none transition-colors`}
                                             />
                                             <input
                                                 type="text"
                                                 placeholder="Jednotka"
                                                 value={ingredient.unit}
                                                 onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'unit', e.target.value)}
-                                                className="w-24 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                                className={`w-24 px-3 py-2 rounded-lg border-2 ${errors[`ingredients.${index}.unit`] ? 'border-red-400' : 'border-gray-200'
+                                                    } focus:border-orange-400 focus:outline-none transition-colors`}
                                             />
                                             <input
                                                 type="text"
@@ -493,14 +632,16 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                                 placeholder="Název *"
                                                 value={ingredient.name}
                                                 onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'name', e.target.value)}
-                                                className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                                className={`flex-1 px-3 py-2 rounded-lg border-2 ${errors[`ingredients.${index}.name`] ? 'border-red-400' : 'border-gray-200'
+                                                    } focus:border-orange-400 focus:outline-none transition-colors`}
                                             />
                                             <input
                                                 type="text"
                                                 placeholder="Poznámka"
                                                 value={ingredient.note}
                                                 onChange={(e: ChangeEvent<HTMLInputElement>): void => updateIngredient(index, 'note', e.target.value)}
-                                                className="w-32 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors"
+                                                className={`w-32 px-3 py-2 rounded-lg border-2 ${errors[`ingredients.${index}.note`] ? 'border-red-400' : 'border-gray-200'
+                                                    } focus:border-orange-400 focus:outline-none transition-colors`}
                                             />
                                             <button
                                                 type="button"
@@ -510,6 +651,17 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                                 <Trash2 className="w-5 h-5" />
                                             </button>
                                         </div>
+
+                                        {/* Chyby pro ingredienci */}
+                                        {(errors[`ingredients.${index}.name`] || errors[`ingredients.${index}.amount`] ||
+                                            errors[`ingredients.${index}.unit`] || errors[`ingredients.${index}.note`]) && (
+                                                <div className="text-sm text-red-600 ml-2">
+                                                    {errors[`ingredients.${index}.name`] && <p>{errors[`ingredients.${index}.name`][0]}</p>}
+                                                    {errors[`ingredients.${index}.amount`] && <p>{errors[`ingredients.${index}.amount`][0]}</p>}
+                                                    {errors[`ingredients.${index}.unit`] && <p>{errors[`ingredients.${index}.unit`][0]}</p>}
+                                                    {errors[`ingredients.${index}.note`] && <p>{errors[`ingredients.${index}.note`][0]}</p>}
+                                                </div>
+                                            )}
                                     </div>
                                 ))}
                             </div>
@@ -530,27 +682,36 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                     <span className="hidden sm:inline">Přidat krok</span>
                                 </button>
                             </div>
+                            {errors.steps && (
+                                <p className="mb-2 text-sm text-red-600">{errors.steps[0]}</p>
+                            )}
                             <div className="space-y-2 sm:space-y-3">
                                 {formData.steps.map((step: StepInput, index: number) => (
-                                    <div key={index} className="flex gap-2 items-start">
-                                        <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold mt-1 text-sm sm:text-base">
-                                            {index + 1}
+                                    <div key={index}>
+                                        <div className="flex gap-2 items-start">
+                                            <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold mt-1 text-sm sm:text-base">
+                                                {index + 1}
+                                            </div>
+                                            <textarea
+                                                required
+                                                placeholder="Popis kroku *"
+                                                value={step.text}
+                                                onChange={(e: ChangeEvent<HTMLTextAreaElement>): void => updateStep(index, e.target.value)}
+                                                rows={2}
+                                                className={`flex-1 px-3 py-2 rounded-lg border-2 ${errors[`steps.${index}.text`] ? 'border-red-400' : 'border-gray-200'
+                                                    } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base`}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={(): void => removeStep(index)}
+                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg mt-1 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                            </button>
                                         </div>
-                                        <textarea
-                                            required
-                                            placeholder="Popis kroku *"
-                                            value={step.text}
-                                            onChange={(e: ChangeEvent<HTMLTextAreaElement>): void => updateStep(index, e.target.value)}
-                                            rows={2}
-                                            className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={(): void => removeStep(index)}
-                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg mt-1 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                                        </button>
+                                        {errors[`steps.${index}.text`] && (
+                                            <p className="mt-2 ml-10 text-sm text-red-600">{errors[`steps.${index}.text`][0]}</p>
+                                        )}
                                     </div>
                                 ))}
                             </div>
