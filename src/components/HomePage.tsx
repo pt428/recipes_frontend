@@ -1,5 +1,5 @@
 //frontend\src\components\HomePage.tsx
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import { Header } from './Header';
 import { AuthModal } from './AuthModal';
 import { RecipeCard } from './RecipeCard';

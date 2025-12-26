@@ -105,7 +105,7 @@ export function ProfileDeletePage() {
                             <ChefHat className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                         </div>
                         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                            Recepty.tisoft.cz
+                            Recepty
                         </h1>
                     </div>
                 </div>

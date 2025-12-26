@@ -2,9 +2,10 @@
 import type { Recipe, User, AuthResponse, LoginCredentials, CreateRecipeData, RegisterData, Tag } from "../types";
 
 // 🔧 Změňte tuto URL na vaši Laravel API URL
-const API_BASE_URL = "http://127.0.0.1:8000/api";
-const STORAGE_URL = "http://127.0.0.1:8000/storage";
-
+const API_BASE_URL = "https://tisoft.cz/recepty/backend/public/api";
+const STORAGE_URL = "https://tisoft.cz/recepty/backend/storage/app/public";
+// const API_BASE_URL = "http://127.0.0.1:8000/api";
+// const STORAGE_URL = "http://127.0.0.1:8000/storage";
 // ✅ Vlastní error třída pro validační chyby
 class ValidationError extends Error {
   public errors: Record<string, string[]>;

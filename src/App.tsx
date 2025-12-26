@@ -1,10 +1,10 @@
 //frontend\src\App.tsx
-import React from 'react';
+
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { HomePage } from './components/HomePage';
 import { SharedRecipe } from './components/SharedRecipe';
-import { ProfileEditPage } from './components/Profileeditpage';
-import { ProfileDeletePage } from './components/Profiledeletepage';
+import { ProfileEditPage } from './components/ProfileEditPage';
+import { ProfileDeletePage } from './components/ProfileDeletePage';
  
 
 function App() {

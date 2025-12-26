@@ -43,13 +43,13 @@ export const Header: React.FC<HeaderProps> = ({ user, onLoginClick, onLogoutClic
                     {/* Logo a název */}
                     <div
                         className="flex items-center gap-2 sm:gap-3 cursor-pointer"
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate('/recepty/')}
                     >
                         <div className="bg-gradient-to-br from-orange-500 to-red-500 p-2 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg">
                             <ChefHat className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                         </div>
                         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                            Recepty.tisoft.cz
+                            Recepty
                         </h1>
                     </div>
 
