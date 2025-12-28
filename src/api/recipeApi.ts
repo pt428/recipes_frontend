@@ -133,11 +133,36 @@ class RecipeApi {
     return this.handleResponse<{ message: string }>(response);
   }
 
-  async getRecipes(): Promise<Recipe[]> {
-    const response = await this.safeFetch(`${API_BASE_URL}/recipes`, {
+  async getRecipes(page: number = 1, perPage: number = 12): Promise<{ recipes: Recipe[]; totalPages: number; total: number }> {
+    const response = await this.safeFetch(`${API_BASE_URL}/recipes?page=${page}&per_page=${perPage}`, {
       headers: this.getHeaders(true),
     });
-    return this.handleResponse<Recipe[]>(response);
+
+    const json = await response.json();
+    console.log("API Response (getRecipes):", json); // DEBUG
+
+    // API vrací { success: true, data: { data: [...], current_page, last_page } }
+    const paginatorData = json.data;
+    console.log("Paginator data:", paginatorData); // DEBUG
+
+    // Pokud data je pole (starší formát), použijeme ho přímo
+    if (Array.isArray(paginatorData)) {
+      console.log("Using array format"); // DEBUG
+      return {
+        recipes: paginatorData,
+        totalPages: 1,
+        total: paginatorData.length,
+      };
+    }
+
+    // Laravel paginator formát: { data: [...], current_page, last_page, total, ... }
+    const result = {
+      recipes: paginatorData.data || [],
+      totalPages: paginatorData.last_page || 1,
+      total: paginatorData.total || 0,
+    };
+    console.log("Returning:", result); // DEBUG
+    return result;
   }
 
   async updateRecipe(id: number, data: Partial<CreateRecipeData>): Promise<Recipe> {
@@ -183,11 +208,49 @@ class RecipeApi {
     return this.handleResponse<{ image_url: string }>(response);
   }
 
-  async searchRecipes(query: string): Promise<Recipe[]> {
-    const response = await this.safeFetch(`${API_BASE_URL}/recipes/search?q=${encodeURIComponent(query)}`, {
+  /**
+   * ✅ AKTUALIZOVÁNO: Vyhledávání receptů s podporou tagů a paginace
+   */
+  async searchRecipes(query: string, tagIds?: number[], page: number = 1, perPage: number = 12): Promise<{ recipes: Recipe[]; totalPages: number; total: number }> {
+    const params = new URLSearchParams();
+
+    if (query.trim()) {
+      params.append("q", query);
+    }
+
+    if (tagIds && tagIds.length > 0) {
+      params.append("tags", tagIds.join(","));
+    }
+
+    params.append("page", page.toString());
+    params.append("per_page", perPage.toString());
+
+    const url = `${API_BASE_URL}/recipes/search${params.toString() ? "?" + params.toString() : ""}`;
+
+    const response = await this.safeFetch(url, {
       headers: this.getHeaders(true),
     });
-    return this.handleResponse<Recipe[]>(response);
+
+    const json = await response.json();
+
+    // API vrací { success: true, data: { data: [...], current_page, last_page } }
+    const paginatorData = json.data;
+
+    // Pokud data je pole (starší formát), použijeme ho přímo
+    if (Array.isArray(paginatorData)) {
+      return {
+        recipes: paginatorData,
+        totalPages: 1,
+        total: paginatorData.length,
+      };
+    }
+
+    // Laravel paginator formát: { data: [...], current_page, last_page, total, ... }
+    return {
+      recipes: paginatorData.data || [],
+      totalPages: paginatorData.last_page || 1,
+      total: paginatorData.total || 0,
+    };
   }
 
   async getComments(recipeId: number): Promise<Comment[]> {

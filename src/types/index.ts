@@ -28,6 +28,7 @@ export interface Step {
 export interface Tag {
   id: number;
   name: string;
+  recipes_count?: number; // Počet receptů s tímto tagem
 }
 
 export interface Recipe {
@@ -165,8 +166,15 @@ export  interface FormData {
   tags: string[];
 }
 export interface HeaderProps {
-    user: User | null;
-    onLoginClick: () => void;
-    onLogoutClick: () => void;
-    onSearch: (query: string) => void;
+  user: User | null;
+  onLoginClick: () => void;
+  onLogoutClick: () => void;
+  onSearch: (query: string, tagIds?: number[]) => void;
+  availableTags?: Tag[];
+  selectedTagIds?: number[];
+  onTagsChange?: (tagIds: number[]) => void;
+  onViewChange?: (view: "all" | "my") => void;
+  onCreateRecipe?: () => void;
+activeView?: "all" | "my";
 }
+ 
