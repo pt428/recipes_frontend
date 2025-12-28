@@ -1,8 +1,8 @@
 //frontend\src\components\Header.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChefHat, Search, LogIn, LogOut, User as UserIcon, Settings, Trash2, X, Tag as TagIcon, Plus } from 'lucide-react';
-import type { HeaderProps, Tag } from '../types';
+import { ChefHat, Search, LogIn, LogOut, User as UserIcon, Settings, Trash2, X, Tag as TagIcon, Plus, Filter } from 'lucide-react';
+import type { HeaderProps, Tag, Category } from '../types';
 import { recipeApi } from '../api/recipeApi';
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,24 +18,32 @@ export const Header: React.FC<HeaderProps> = ({
     const [showSidebar, setShowSidebar] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTags, setSelectedTags] = useState<number[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
     const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+    const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
     const [showTagDropdown, setShowTagDropdown] = useState(false);
+    const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const tagDropdownRef = useRef<HTMLDivElement>(null);
+    const categoryDropdownRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
 
-    // Načtení tagů při mounted
+    // Načtení tagů a kategorií při mounted
     useEffect(() => {
-        const fetchTags = async () => {
+        const fetchFilters = async () => {
             try {
-                const tags = await recipeApi.getTags();
+                const [tags, categories] = await Promise.all([
+                    recipeApi.getTags(),
+                    recipeApi.getCategories()
+                ]);
                 setAvailableTags(tags);
+                setAvailableCategories(categories);
             } catch (err) {
-                console.error('Chyba při načítání tagů:', err);
+                console.error('Chyba při načítání filtrů:', err);
             }
         };
-        fetchTags();
+        fetchFilters();
     }, []);
 
     // Zavření menu při kliknutí mimo
@@ -47,6 +55,9 @@ export const Header: React.FC<HeaderProps> = ({
             if (tagDropdownRef.current && !tagDropdownRef.current.contains(event.target as Node)) {
                 setShowTagDropdown(false);
             }
+            if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+                setShowCategoryDropdown(false);
+            }
             if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
                 // Neklikli na hamburger tlačítko
                 const target = event.target as HTMLElement;
@@ -56,23 +67,23 @@ export const Header: React.FC<HeaderProps> = ({
             }
         };
 
-        if (showUserMenu || showTagDropdown || showSidebar) {
+        if (showUserMenu || showTagDropdown || showCategoryDropdown || showSidebar) {
             document.addEventListener('mousedown', handleClickOutside);
         }
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [showUserMenu, showTagDropdown, showSidebar]);
+    }, [showUserMenu, showTagDropdown, showCategoryDropdown, showSidebar]);
 
-    // Spuštění vyhledávání při změně query nebo tagů
+    // Spuštění vyhledávání při změně query, tagů nebo kategorie
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            onSearch(searchQuery, selectedTags);
+            onSearch(searchQuery, selectedTags, selectedCategory);
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, selectedTags]);
+    }, [searchQuery, selectedTags, selectedCategory]);
 
     const handleTagToggle = (tagId: number) => {
         setSelectedTags(prev => {
@@ -88,6 +99,11 @@ export const Header: React.FC<HeaderProps> = ({
         setSelectedTags(prev => prev.filter(id => id !== tagId));
     };
 
+    const handleCategorySelect = (categoryId: number | null) => {
+        setSelectedCategory(categoryId);
+        setShowCategoryDropdown(false);
+    };
+
     const handleEditProfile = () => {
         setShowUserMenu(false);
         navigate('/profile/edit');
@@ -97,6 +113,14 @@ export const Header: React.FC<HeaderProps> = ({
         setShowUserMenu(false);
         navigate('/profile/delete');
     };
+
+    const clearAllFilters = () => {
+        setSearchQuery('');
+        setSelectedTags([]);
+        setSelectedCategory(null);
+    };
+
+    const hasActiveFilters = searchQuery || selectedTags.length > 0 || selectedCategory !== null;
 
     return (
         <>
@@ -139,17 +163,17 @@ export const Header: React.FC<HeaderProps> = ({
                                 onViewChange?.('all');
                             }}
                             className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors group ${activeView === 'all'
-                                    ? 'bg-orange-500 text-white'
-                                    : 'hover:bg-orange-50'
+                                ? 'bg-orange-500 text-white'
+                                : 'hover:bg-orange-50'
                                 }`}
                         >
                             <ChefHat className={`w-5 h-5 ${activeView === 'all'
-                                    ? 'text-white'
-                                    : 'text-gray-600 group-hover:text-orange-600'
+                                ? 'text-white'
+                                : 'text-gray-600 group-hover:text-orange-600'
                                 }`} />
                             <span className={`font-medium ${activeView === 'all'
-                                    ? 'text-white font-semibold'
-                                    : 'text-gray-700 group-hover:text-orange-600'
+                                ? 'text-white font-semibold'
+                                : 'text-gray-700 group-hover:text-orange-600'
                                 }`}>
                                 Všechny recepty
                             </span>
@@ -167,17 +191,17 @@ export const Header: React.FC<HeaderProps> = ({
                                     onViewChange?.('my');
                                 }}
                                 className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors group ${activeView === 'my'
-                                        ? 'bg-orange-500 text-white'
-                                        : 'hover:bg-orange-50'
+                                    ? 'bg-orange-500 text-white'
+                                    : 'hover:bg-orange-50'
                                     }`}
                             >
                                 <UserIcon className={`w-5 h-5 ${activeView === 'my'
-                                        ? 'text-white'
-                                        : 'text-gray-600 group-hover:text-orange-600'
+                                    ? 'text-white'
+                                    : 'text-gray-600 group-hover:text-orange-600'
                                     }`} />
                                 <span className={`font-medium ${activeView === 'my'
-                                        ? 'text-white font-semibold'
-                                        : 'text-gray-700 group-hover:text-orange-600'
+                                    ? 'text-white font-semibold'
+                                    : 'text-gray-700 group-hover:text-orange-600'
                                     }`}>
                                     Moje recepty
                                 </span>
@@ -248,6 +272,74 @@ export const Header: React.FC<HeaderProps> = ({
                             />
                         </div>
 
+                        {/* Category filter */}
+                        <div className="relative flex-shrink-0" ref={categoryDropdownRef}>
+                            <button
+                                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm whitespace-nowrap"
+                            >
+                                <Filter className="w-4 h-4 text-gray-600" />
+                                <span className="hidden sm:inline text-gray-700">
+                                    {selectedCategory
+                                        ? availableCategories.find(c => c.id === selectedCategory)?.name
+                                        : 'Kategorie'}
+                                </span>
+                                {selectedCategory && (
+                                    <span
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCategorySelect(null);
+                                        }}
+                                        className="hover:bg-gray-300 rounded-full p-0.5 cursor-pointer inline-flex"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* Category dropdown */}
+                            {showCategoryDropdown && (
+                                <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-gray-200 py-2 w-[220px] max-h-[400px] overflow-y-auto z-50">
+                                    <div className="px-3 py-2 border-b border-gray-100 sticky top-0 bg-white">
+                                        <p className="text-xs font-semibold text-gray-600">Filtrovat podle kategorie</p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleCategorySelect(null)}
+                                        className={`w-full flex items-center justify-between gap-3 px-4 py-2 hover:bg-gray-50 transition-colors text-left ${!selectedCategory ? 'bg-orange-50' : ''
+                                            }`}
+                                    >
+                                        <span className="text-sm text-gray-700 font-medium">Všechny kategorie</span>
+                                        {!selectedCategory && (
+                                            <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                    {availableCategories.length === 0 ? (
+                                        <div className="px-4 py-3 text-sm text-gray-500">
+                                            Žádné kategorie nejsou k dispozici
+                                        </div>
+                                    ) : (
+                                        availableCategories.map(category => (
+                                            <button
+                                                key={category.id}
+                                                onClick={() => handleCategorySelect(category.id)}
+                                                className={`w-full flex items-center justify-between gap-3 px-4 py-2 hover:bg-gray-50 transition-colors text-left ${selectedCategory === category.id ? 'bg-orange-50' : ''
+                                                    }`}
+                                            >
+                                                <span className="text-sm text-gray-700">{category.name}</span>
+                                                {selectedCategory === category.id && (
+                                                    <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         {/* Tag filter */}
                         <div className="relative flex-shrink-0" ref={tagDropdownRef}>
                             <button
@@ -291,8 +383,8 @@ export const Header: React.FC<HeaderProps> = ({
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${selectedTags.includes(tag.id)
-                                                            ? 'bg-orange-500 border-orange-500'
-                                                            : 'border-gray-300'
+                                                        ? 'bg-orange-500 border-orange-500'
+                                                        : 'border-gray-300'
                                                         }`}>
                                                         {selectedTags.includes(tag.id) && (
                                                             <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -388,10 +480,25 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                     </div>
 
-                    {/* Selected tags row - zobrazí se jen když jsou vybrané tagy */}
-                    {selectedTags.length > 0 && (
+                    {/* Selected filters row - zobrazí se jen když jsou aktivní filtry */}
+                    {hasActiveFilters && (
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <span className="text-xs text-gray-500">Filtry:</span>
+
+                            {/* Selected category */}
+                            {selectedCategory && (
+                                <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-xs">
+                                    <span>{availableCategories.find(c => c.id === selectedCategory)?.name}</span>
+                                    <button
+                                        onClick={() => handleCategorySelect(null)}
+                                        className="hover:bg-blue-200 rounded-full p-0.5"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Selected tags */}
                             {availableTags
                                 .filter(tag => selectedTags.includes(tag.id))
                                 .map(tag => (
@@ -408,8 +515,9 @@ export const Header: React.FC<HeaderProps> = ({
                                         </button>
                                     </div>
                                 ))}
+
                             <button
-                                onClick={() => setSelectedTags([])}
+                                onClick={clearAllFilters}
                                 className="text-xs text-gray-500 hover:text-gray-700 underline"
                             >
                                 Vymazat vše

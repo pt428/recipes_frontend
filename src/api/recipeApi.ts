@@ -1,5 +1,5 @@
 //frontend\src\api\recipeApi.ts
-import type { Recipe, User, AuthResponse, LoginCredentials, CreateRecipeData, RegisterData, Tag } from "../types";
+import type { Recipe, User, AuthResponse, LoginCredentials, CreateRecipeData, RegisterData, Tag, Category } from "../types";
 
 // 🔧 Změňte tuto URL na vaši Laravel API URL
 const API_BASE_URL = "https://tisoft.cz/recepty/backend/public/api";
@@ -139,15 +139,15 @@ class RecipeApi {
     });
 
     const json = await response.json();
-    console.log("API Response (getRecipes):", json); // DEBUG
+    // console.log("API Response (getRecipes):", json); // DEBUG
 
     // API vrací { success: true, data: { data: [...], current_page, last_page } }
     const paginatorData = json.data;
-    console.log("Paginator data:", paginatorData); // DEBUG
+    // console.log("Paginator data:", paginatorData); // DEBUG
 
     // Pokud data je pole (starší formát), použijeme ho přímo
     if (Array.isArray(paginatorData)) {
-      console.log("Using array format"); // DEBUG
+      // console.log("Using array format"); // DEBUG
       return {
         recipes: paginatorData,
         totalPages: 1,
@@ -161,7 +161,7 @@ class RecipeApi {
       totalPages: paginatorData.last_page || 1,
       total: paginatorData.total || 0,
     };
-    console.log("Returning:", result); // DEBUG
+    // console.log("Returning:", result); // DEBUG
     return result;
   }
 
@@ -211,7 +211,10 @@ class RecipeApi {
   /**
    * ✅ AKTUALIZOVÁNO: Vyhledávání receptů s podporou tagů a paginace
    */
-  async searchRecipes(query: string, tagIds?: number[], page: number = 1, perPage: number = 12): Promise<{ recipes: Recipe[]; totalPages: number; total: number }> {
+  /**
+   * ✅ AKTUALIZOVÁNO: Vyhledávání receptů s podporou tagů, kategorií a paginace
+   */
+  async searchRecipes(query: string, tagIds?: number[], categoryId?: number | null, page: number = 1, perPage: number = 12): Promise<{ recipes: Recipe[]; totalPages: number; total: number }> {
     const params = new URLSearchParams();
 
     if (query.trim()) {
@@ -220,6 +223,10 @@ class RecipeApi {
 
     if (tagIds && tagIds.length > 0) {
       params.append("tags", tagIds.join(","));
+    }
+
+    if (categoryId) {
+      params.append("category_id", categoryId.toString());
     }
 
     params.append("page", page.toString());
@@ -252,7 +259,6 @@ class RecipeApi {
       total: paginatorData.total || 0,
     };
   }
-
   async getComments(recipeId: number): Promise<Comment[]> {
     const response = await this.safeFetch(`${API_BASE_URL}/recipes/${recipeId}/comments`, {
       headers: this.getHeaders(true),
@@ -327,6 +333,24 @@ class RecipeApi {
       headers: this.getHeaders(false), // Veřejný endpoint
     });
     return this.handleResponse<Recipe>(response);
+  }
+
+  /**
+   * ✅ NOVÉ: Načtení seznamu kategorií
+   */
+  async getCategories(): Promise<Category[]> {
+    const response = await this.safeFetch(`${API_BASE_URL}/categories`, {
+      headers: this.getHeaders(false),
+    });
+
+    const json = await response.json();
+    if (!response.ok) {
+      throw new Error("Nepodařilo se načíst kategorie");
+    }
+    // Laravel vrací { data: [...] }
+    const categories = json.data || json;
+
+    return Array.isArray(categories) ? categories : [];
   }
 }
 

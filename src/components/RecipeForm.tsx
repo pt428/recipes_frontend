@@ -1,7 +1,6 @@
-
-import React, { useState, type ChangeEvent, type FormEvent } from 'react';
+import React, { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { X, Plus, Trash2, Upload, Image as ImageIcon } from 'lucide-react';
-import type { CreateRecipeData, IngredientInput, Recipe, RecipeFormProps, StepInput, FormData } from '../types';
+import type { CreateRecipeData, IngredientInput, Recipe, RecipeFormProps, StepInput, FormData, Category } from '../types';
 import { recipeApi, ValidationError } from '../api/recipeApi';
 import { TagInput } from './TagInput';
 
@@ -9,6 +8,8 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
     const [loading, setLoading] = useState<boolean>(false);
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [loadingCategories, setLoadingCategories] = useState<boolean>(true);
 
     const [imagePreview, setImagePreview] = useState<string | null>(
         recipe?.image_path ? recipeApi.getImageUrl(recipe.image_path) : null
@@ -17,7 +18,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
     const [formData, setFormData] = useState<FormData>({
         title: recipe?.title || '',
         description: recipe?.description || '',
-        category_id: recipe?.category_id || undefined,
+        category_id: recipe?.category_id ?? recipe?.category?.id ?? undefined,
         difficulty: recipe?.difficulty || 'easy',
         prep_time_minutes: recipe?.prep_time_minutes || 0,
         cook_time_minutes: recipe?.cook_time_minutes || 0,
@@ -36,6 +37,40 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
         })) || [{ order_index: 1, text: '' }],
         tags: recipe?.tags?.map((t): string => t.name) || [],
     });
+
+    // Načtení kategorií při mount
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                setLoadingCategories(true);
+                const data = await recipeApi.getCategories();
+                setCategories(data);
+            } catch (err) {
+                console.error('Chyba při načítání kategorií:', err);
+                // Můžeme zobrazit chybovou hlášku, ale formulář bude fungovat i bez kategorií
+            } finally {
+                setLoadingCategories(false);
+            }
+        };
+
+        fetchCategories();
+    }, []);
+
+    const updateCategory = (e: ChangeEvent<HTMLSelectElement>): void => {
+        const value = e.target.value;
+        setFormData((prev: FormData): FormData => ({
+            ...prev,
+            category_id: value === '' ? undefined : parseInt(value)
+        }));
+        // Vyčisti chybu při změně
+        if (errors.category_id) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors.category_id;
+                return newErrors;
+            });
+        }
+    };
 
     const updateServingType = (e: ChangeEvent<HTMLSelectElement>): void => {
         setFormData((prev: FormData): FormData => ({
@@ -409,6 +444,35 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, onClose, onSucce
                                 />
                                 {errors.description && (
                                     <p className="mt-2 text-sm text-red-600">{errors.description[0]}</p>
+                                )}
+                            </div>
+
+                            {/* Category */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Kategorie *
+                                </label>
+                                <select
+                                    required
+                                    value={formData.category_id || ''}
+                                    onChange={updateCategory}
+                                    disabled={loadingCategories}
+                                    className={`w-full px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl border-2 ${errors.category_id ? 'border-red-400' : 'border-gray-200'
+                                        } focus:border-orange-400 focus:outline-none transition-colors text-sm sm:text-base ${loadingCategories ? 'opacity-50 cursor-not-allowed' : ''
+                                        }`}
+                                >
+                                    <option value="">-- Vyberte kategorii --</option>
+                                    {categories.map((category) => (
+                                        <option key={category.id} value={category.id}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {loadingCategories && (
+                                    <p className="mt-2 text-xs text-gray-500">Načítání kategorií...</p>
+                                )}
+                                {errors.category_id && (
+                                    <p className="mt-2 text-sm text-red-600">{errors.category_id[0]}</p>
                                 )}
                             </div>
 

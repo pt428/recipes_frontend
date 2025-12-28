@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Clock, Users, ChefHat, Edit, Trash2, Plus, Minus, Check, Globe, Lock, Link2, Copy, X } from 'lucide-react';
-import type { RecipeDetailProps, Tag, Recipe } from '../types';
+import { ArrowLeft, Clock, Users, ChefHat, Edit, Trash2, Plus, Minus, Check, Globe, Lock, Link2, Copy, X, Bookmark } from 'lucide-react';
+import type { RecipeDetailProps, Tag, Recipe  } from '../types';
 import { recipeApi } from '../api/recipeApi';
 
 export const RecipeDetail: React.FC<RecipeDetailProps> = ({
@@ -12,8 +12,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     onRecipeUpdate
 }) => {
     const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
-
-    console.log('RecipeDetail render - visibility:', recipe.visibility, 'token:', recipe.share_token);
 
     const isOwner: boolean = currentUser?.id === recipe.user_id;
 
@@ -134,9 +132,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         if (!confirm('Opravdu chcete zrušit sdílený odkaz? Odkaz přestane být funkční.')) return;
 
         try {
-            console.log('🔴 Calling disableShareLink API...');
             await recipeApi.disableShareLink(recipe.id);
-            console.log('✅ API call successful');
 
             setRecipe(prev => {
                 const updated = {
@@ -316,12 +312,21 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
-                        {/* Visibility Badge - Responsive */}
-                        <div className="absolute top-3 sm:top-6 left-3 sm:left-6">
+                        {/* Badges Container - Responsive */}
+                        <div className="absolute top-3 sm:top-6 left-3 sm:left-6 flex flex-col gap-2">
+                            {/* Visibility Badge */}
                             <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 ${visibilityInfo.color} backdrop-blur-sm text-white rounded-full text-xs sm:text-sm font-semibold shadow-lg`}>
                                 <div className="w-3 h-3 sm:w-4 sm:h-4">{visibilityInfo.icon}</div>
                                 <span className="hidden sm:inline">{visibilityInfo.label}</span>
                             </div>
+
+                            {/* Category Badge */}
+                            {recipe.category && (
+                                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-500/90 backdrop-blur-sm text-white rounded-full text-xs sm:text-sm font-semibold shadow-lg">
+                                    <Bookmark className="w-3 h-3 sm:w-4 sm:h-4" />
+                                    <span className="hidden sm:inline">{recipe.category.name}</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Title and Description - Responsive */}
@@ -476,8 +481,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                                             <button
                                                 onClick={() => toggleIngredient(ingredient.id)}
                                                 className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 mt-0.5 transition-all ${checkedIngredients.has(ingredient.id)
-                                                        ? 'bg-orange-500 border-orange-500'
-                                                        : 'border-orange-300 hover:border-orange-500'
+                                                    ? 'bg-orange-500 border-orange-500'
+                                                    : 'border-orange-300 hover:border-orange-500'
                                                     }`}
                                             >
                                                 {checkedIngredients.has(ingredient.id) && (
@@ -519,8 +524,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                                             <button
                                                 onClick={() => toggleStep(step.id)}
                                                 className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 transition-all ${checkedSteps.has(step.id)
-                                                        ? 'bg-green-500 border-green-500'
-                                                        : 'border-gray-300 hover:border-green-500'
+                                                    ? 'bg-green-500 border-green-500'
+                                                    : 'border-gray-300 hover:border-green-500'
                                                     }`}
                                             >
                                                 {checkedSteps.has(step.id) && (

@@ -169,12 +169,12 @@ export interface HeaderProps {
   user: User | null;
   onLoginClick: () => void;
   onLogoutClick: () => void;
-  onSearch: (query: string, tagIds?: number[]) => void;
+  onSearch: (query: string, tagIds?: number[], categoryId?: number | null) => void;
   availableTags?: Tag[];
   selectedTagIds?: number[];
   onTagsChange?: (tagIds: number[]) => void;
   onViewChange?: (view: "all" | "my") => void;
   onCreateRecipe?: () => void;
-activeView?: "all" | "my";
+  activeView?: "all" | "my";
 }
  

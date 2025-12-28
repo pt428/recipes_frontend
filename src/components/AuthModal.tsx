@@ -137,7 +137,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
             : 'Zaregistrujte se a začněte sdílet recepty';
     };
 
-    console.log('📊 Aktuální errors state:', errors);
+    // console.log('📊 Aktuální errors state:', errors);
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

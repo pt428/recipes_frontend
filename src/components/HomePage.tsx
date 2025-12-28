@@ -26,6 +26,7 @@ export function HomePage() {
     const [recipesPerPage] = useState(12);
     const [currentSearchQuery, setCurrentSearchQuery] = useState('');
     const [currentSearchTags, setCurrentSearchTags] = useState<number[]>([]);
+    const [currentSearchCategory, setCurrentSearchCategory] = useState<number | null>(null);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -50,9 +51,9 @@ export function HomePage() {
             setLoading(true);
             const data = await recipeApi.getRecipes(page, recipesPerPage);
 
-            console.log('Loaded recipes data:', data); // DEBUG
-            console.log('Total pages:', data.totalPages); // DEBUG
-            console.log('Total recipes:', data.total); // DEBUG
+            // console.log('Loaded recipes data:', data); // DEBUG
+            // console.log('Total pages:', data.totalPages); // DEBUG
+            // console.log('Total recipes:', data.total); // DEBUG
 
             setRecipes(data.recipes);
             setTotalPages(data.totalPages);
@@ -113,20 +114,21 @@ export function HomePage() {
         }
     };
 
-    const handleSearch = async (query: string, tagIds?: number[]): Promise<void> => {
+    const handleSearch = async (query: string, tagIds?: number[], categoryId?: number | null): Promise<void> => {
         // Uložíme si aktuální vyhledávací parametry
         setCurrentSearchQuery(query);
         setCurrentSearchTags(tagIds || []);
+        setCurrentSearchCategory(categoryId ?? null);
 
-        // Pokud není query ani tagy, načteme všechny recepty
-        if (!query.trim() && (!tagIds || tagIds.length === 0)) {
+        // Pokud není query, tagy ani kategorie, načteme všechny recepty
+        if (!query.trim() && (!tagIds || tagIds.length === 0) && !categoryId) {
             loadRecipes(1);
             return;
         }
 
         try {
             setLoading(true);
-            const data = await recipeApi.searchRecipes(query, tagIds, 1, recipesPerPage);
+            const data = await recipeApi.searchRecipes(query, tagIds, categoryId, 1, recipesPerPage);
             setRecipes(data.recipes);
             setTotalPages(data.totalPages);
             setTotalRecipes(data.total);
@@ -145,12 +147,13 @@ export function HomePage() {
         if (page < 1 || page > totalPages) return;
 
         // Pokud máme aktivní vyhledávání
-        if (currentSearchQuery || currentSearchTags.length > 0) {
+        if (currentSearchQuery || currentSearchTags.length > 0 || currentSearchCategory) {
             try {
                 setLoading(true);
                 const data = await recipeApi.searchRecipes(
                     currentSearchQuery,
                     currentSearchTags,
+                    currentSearchCategory,
                     page,
                     recipesPerPage
                 );
@@ -341,8 +344,8 @@ export function HomePage() {
                                                 key={i}
                                                 onClick={() => handlePageChange(i)}
                                                 className={`px-4 py-2 rounded-lg border-2 transition-colors ${currentPage === i
-                                                        ? 'bg-orange-500 border-orange-500 text-white font-semibold'
-                                                        : 'border-gray-300 hover:border-orange-500 hover:bg-orange-50'
+                                                    ? 'bg-orange-500 border-orange-500 text-white font-semibold'
+                                                    : 'border-gray-300 hover:border-orange-500 hover:bg-orange-50'
                                                     }`}
                                             >
                                                 {i}
