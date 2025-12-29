@@ -27,7 +27,26 @@ export function HomePage() {
     const [currentSearchQuery, setCurrentSearchQuery] = useState('');
     const [currentSearchTags, setCurrentSearchTags] = useState<number[]>([]);
     const [currentSearchCategory, setCurrentSearchCategory] = useState<number | null>(null);
+    // Detekce tlačítka zpět pro zavření detailu receptu
+    useEffect(() => {
+        if (selectedRecipe) {
+            // Přidáme fake historii, aby zpět fungovalo
+            window.history.pushState({ recipeDetail: true }, '');
 
+            const handlePopState = (event: PopStateEvent) => {
+                if (event.state?.recipeDetail || selectedRecipe) {
+                    setSelectedRecipe(null);
+                }
+            };
+
+            window.addEventListener('popstate', handlePopState);
+
+            return () => {
+                window.removeEventListener('popstate', handlePopState);
+            };
+        }
+    }, [selectedRecipe]);
+    
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {

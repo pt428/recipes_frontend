@@ -12,7 +12,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Hlavní stránka s recepty */}
-        <Route path="/" element={<HomePage />} />
+        <Route path="/recepty" element={<HomePage />} />
 
         {/* Sdílený recept pomocí tokenu */}
         <Route path="/shared/:token" element={<SharedRecipe />} />
