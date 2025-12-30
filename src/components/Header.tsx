@@ -1,4 +1,3 @@
-//frontend\src\components\Header.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChefHat, Search, LogIn, LogOut, User as UserIcon, Settings, Trash2, X, Tag as TagIcon, Plus, Filter } from 'lucide-react';
@@ -284,8 +283,16 @@ export const Header: React.FC<HeaderProps> = ({
                                 placeholder="Hledat..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-8 pr-2 py-1.5 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
+                                className="w-full pl-8 pr-8 py-1.5 rounded-lg border-2 border-gray-200 focus:border-orange-400 focus:outline-none transition-colors text-sm"
                             />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
                         </div>
 
                         {/* Category filter */}
@@ -448,8 +455,7 @@ export const Header: React.FC<HeaderProps> = ({
                                     {showUserMenu && (
                                         <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-gray-200 py-2 min-w-[220px] z-50">
                                             <div className="px-4 py-2 border-b border-gray-100">
-                                                <p className="text-xs text-gray-500">Přihlášen jako</p>
-                                                <p className="font-semibold text-gray-700 truncate text-sm">{user.name}</p>
+                                                                                               <p className="font-semibold text-gray-700 truncate text-sm">{user.name}</p>
                                                 <p className="text-xs text-gray-500 truncate">{user.email}</p>
                                             </div>
 

@@ -63,7 +63,7 @@ export const SharedRecipe: React.FC = () => {
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Recept nenalezen</h2>
                     <p className="text-gray-600 mb-6">{error || 'Tento odkaz je neplatný nebo vypršel.'}</p>
                     <button
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate('/recepty')}
                         className="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors"
                     >
                         Přejít na hlavní stránku
@@ -78,7 +78,7 @@ export const SharedRecipe: React.FC = () => {
     return (
         <RecipeDetail
             recipe={recipe}
-            onBack={() => navigate('/')}
+            onBack={() => navigate('/recepty')}
             onEdit={() => { }} // Prázdná funkce - nikdy se nezavolá (není zobrazeno tlačítko)
             onDelete={async () => { }} // Prázdná funkce - nikdy se nezavolá
             currentUser={null} // ✅ DŮLEŽITÉ: null = nezobrazí se tlačítka pro úpravy

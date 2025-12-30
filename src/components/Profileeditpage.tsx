@@ -27,7 +27,7 @@ export function ProfileEditPage() {
         const loadUser = async () => {
             const token = authStorage.getToken();
             if (!token) {
-                navigate('/');
+                navigate('/recepty');
                 return;
             }
 
@@ -42,7 +42,7 @@ export function ProfileEditPage() {
                 });
             } catch (err) {
                 console.error('Chyba při načítání uživatele:', err);
-                navigate('/');
+                navigate('/recepty');
             } finally {
                 setLoading(false);
             }
@@ -99,7 +99,7 @@ export function ProfileEditPage() {
 
             // Přesměruj po 2 sekundách
             setTimeout(() => {
-                navigate('/');
+                navigate('/recepty');
             }, 2000);
 
         } catch (error) {
@@ -148,7 +148,7 @@ export function ProfileEditPage() {
                 {/* Header */}
                 <div className="mb-6">
                     <button
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate('/recepty')}
                         className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5" />
@@ -289,7 +289,7 @@ export function ProfileEditPage() {
 
                         <button
                             type="button"
-                            onClick={() => navigate('/')}
+                            onClick={() => navigate('/recepty')}
                             className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
                         >
                             Zrušit
