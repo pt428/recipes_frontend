@@ -1,15 +1,21 @@
 //frontend\src\components\RecipeDetailPage.tsx
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { RecipeDetail } from './RecipeDetail';
 import { RecipeForm } from './RecipeForm';
 import { recipeApi } from '../api/recipeApi';
 import type { Recipe, User } from '../types';
 import { authStorage } from '../services/auth';
 
+interface RecipeListReturnState {
+    page: number;
+    scrollToId: number;
+}
+
 export function RecipeDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const [recipe, setRecipe] = useState<Recipe | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
@@ -50,7 +56,20 @@ export function RecipeDetailPage() {
     };
 
     const handleBack = () => {
-        navigate('/recepty');
+        // Získáme parametry z location.state
+        const state = location.state as RecipeListReturnState | null;
+        const returnPage = state?.page || 1;
+        const scrollToId = state?.scrollToId || (id ? parseInt(id) : 0);
+
+        console.log('⬅️ Navigace zpět:', { returnPage, scrollToId });
+
+        // Vrátíme se na HomePage s state
+        const returnState: RecipeListReturnState = {
+            page: returnPage,
+            scrollToId: scrollToId
+        };
+
+        navigate('/recepty', { state: returnState });
     };
 
     const handleEdit = () => {
@@ -60,7 +79,15 @@ export function RecipeDetailPage() {
     const handleDelete = async (recipeId: number) => {
         try {
             await recipeApi.deleteRecipe(recipeId);
-            navigate('/recepty');
+            const state = location.state as RecipeListReturnState | null;
+            const returnPage = state?.page || 1;
+
+            const returnState: RecipeListReturnState = {
+                page: returnPage,
+                scrollToId: 0 // Po smazání nescrollujeme
+            };
+
+            navigate('/recepty', { state: returnState });
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Nepodařilo se smazat recept');
         }

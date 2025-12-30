@@ -27,6 +27,9 @@ export const Header: React.FC<HeaderProps> = ({
     const tagDropdownRef = useRef<HTMLDivElement>(null);
     const categoryDropdownRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
+    const prevSearchQuery = useRef<string>('');
+    const prevSelectedTags = useRef<number[]>([]);
+    const prevSelectedCategory = useRef<number | null>(null);
     const navigate = useNavigate();
 
     // Načtení tagů a kategorií při mounted
@@ -78,12 +81,25 @@ export const Header: React.FC<HeaderProps> = ({
 
     // Spuštění vyhledávání při změně query, tagů nebo kategorie
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            onSearch(searchQuery, selectedTags, selectedCategory);
-        }, 300);
+        // Zkontrolujeme, zda se hodnoty skutečně změnily
+        const queryChanged = prevSearchQuery.current !== searchQuery;
+        const tagsChanged = JSON.stringify(prevSelectedTags.current) !== JSON.stringify(selectedTags);
+        const categoryChanged = prevSelectedCategory.current !== selectedCategory;
 
-        return () => clearTimeout(timeoutId);
-    }, [searchQuery, selectedTags, selectedCategory]);
+        // Aktualizujeme ref hodnoty
+        prevSearchQuery.current = searchQuery;
+        prevSelectedTags.current = selectedTags;
+        prevSelectedCategory.current = selectedCategory;
+
+        // Volat onSearch pouze pokud se něco změnilo
+        if (queryChanged || tagsChanged || categoryChanged) {
+            const timeoutId = setTimeout(() => {
+                onSearch(searchQuery, selectedTags, selectedCategory);
+            }, 300);
+
+            return () => clearTimeout(timeoutId);
+        }
+    }, [searchQuery, selectedTags, selectedCategory, onSearch]);
 
     const handleTagToggle = (tagId: number) => {
         setSelectedTags(prev => {
