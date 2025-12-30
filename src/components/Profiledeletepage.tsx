@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { recipeApi, ValidationError } from '../api/recipeApi';
 import { ArrowLeft, AlertTriangle, Trash2, ChefHat, Eye, EyeOff } from 'lucide-react';
 import type { User } from '../types';
+import { authStorage } from '../services/auth';
 
 export function ProfileDeletePage() {
     const navigate = useNavigate();
@@ -20,7 +21,7 @@ export function ProfileDeletePage() {
     // Načti aktuálního uživatele
     useEffect(() => {
         const loadUser = async () => {
-            const token = localStorage.getItem('token');
+            const token = authStorage.getToken();
             if (!token) {
                 navigate('/');
                 return;
@@ -66,7 +67,7 @@ export function ProfileDeletePage() {
             alert(response.message);
 
             // Odhlásit a přesměrovat
-            localStorage.removeItem('token');
+            authStorage.removeToken();
             navigate('/');
 
         } catch (error) {

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { recipeApi, ValidationError } from '../api/recipeApi';
 import { ArrowLeft, Save, ChefHat, Eye, EyeOff } from 'lucide-react';
 import type { User } from '../types';
+import { authStorage } from '../services/auth';
 
 export function ProfileEditPage() {
     const navigate = useNavigate();
@@ -24,7 +25,7 @@ export function ProfileEditPage() {
     // Načti aktuálního uživatele
     useEffect(() => {
         const loadUser = async () => {
-            const token = localStorage.getItem('token');
+            const token = authStorage.getToken();
             if (!token) {
                 navigate('/');
                 return;

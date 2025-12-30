@@ -8,8 +8,11 @@ import { recipeApi } from '../api/recipeApi';
 import type { Recipe, User, LoginCredentials } from '../types';
 import { ChefHat, ChevronLeft, ChevronRight } from 'lucide-react';
 import { RecipeForm } from './RecipeForm';
+import { useNavigate } from 'react-router-dom';
+import { authStorage } from '../services/auth';
 
 export function HomePage() {
+    const navigate = useNavigate();
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
     const [user, setUser] = useState<User | null>(null);
@@ -48,7 +51,7 @@ export function HomePage() {
     }, [selectedRecipe]);
     
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = authStorage.getToken();
         if (token) {
             loadUser();
         }
@@ -61,7 +64,7 @@ export function HomePage() {
             setUser(userData);
         } catch (err) {
             console.error('Chyba při načítání uživatele:', err);
-            localStorage.removeItem('token');
+            authStorage.removeToken();
         }
     };
 
@@ -195,7 +198,7 @@ export function HomePage() {
 
     const handleLogin = async (credentials: LoginCredentials) => {
         const data = await recipeApi.login(credentials);
-        localStorage.setItem('token', data.token);
+        authStorage.setToken(data.token);
         setUser(data.user);
         loadRecipes();
     };
@@ -206,24 +209,26 @@ export function HomePage() {
         } catch (err) {
             console.error(err);
         } finally {
-            localStorage.removeItem('token');
+            authStorage.removeToken();
             setUser(null);
             loadRecipes();
         }
     };
 
-    const handleRecipeClick = async (recipeId: number) => {
-        try {
-            setLoading(true);
-            const recipe = await recipeApi.getRecipe(recipeId);
-            setSelectedRecipe(recipe);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Nepodařilo se načíst detail receptu');
-        } finally {
-            setLoading(false);
-        }
+    // const handleRecipeClick = async (recipeId: number) => {
+    //     try {
+    //         setLoading(true);
+    //         const recipe = await recipeApi.getRecipe(recipeId);
+    //         setSelectedRecipe(recipe);
+    //     } catch (err) {
+    //         setError(err instanceof Error ? err.message : 'Nepodařilo se načíst detail receptu');
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+    const handleRecipeClick = (recipeId: number) => {
+        navigate(`/recepty/${recipeId}`);
     };
-
     const filteredRecipes: Recipe[] = (recipes || []).filter(recipe => {
         if (activeTab === 'my' && user) {
             return recipe.user_id === user.id;

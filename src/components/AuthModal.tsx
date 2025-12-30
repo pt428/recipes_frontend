@@ -2,6 +2,7 @@ import React, { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import type { LoginCredentials, RegisterData } from '../types';
 import { recipeApi, ValidationError } from '../api/recipeApi';
+import { authStorage } from '../services/auth';
 
 interface AuthModalProps {
     onClose: () => void;
@@ -76,7 +77,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLogin, context 
 
         try {
             const data = await recipeApi.register(registerData);
-            localStorage.setItem('token', data.token);
+            authStorage.setToken(data.token);
             await onLogin({ email: registerData.email, password: registerData.password });
             onClose();
         } catch (err: unknown) {

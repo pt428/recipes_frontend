@@ -1,4 +1,5 @@
 //frontend\src\api\recipeApi.ts
+import { authStorage } from "../services/auth";
 import type { Recipe, User, AuthResponse, LoginCredentials, CreateRecipeData, RegisterData, Tag, Category } from "../types";
 
 // 🔧 Změňte tuto URL na vaši Laravel API URL
@@ -27,7 +28,7 @@ class RecipeApi {
     };
 
     if (includeAuth) {
-      const token = localStorage.getItem("token");
+      const token = authStorage.getToken();
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }
@@ -52,7 +53,7 @@ class RecipeApi {
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       if (response.status === 401) {
-        localStorage.removeItem("token");
+        authStorage.removeToken();
         window.location.href = "/";
       }
 
@@ -195,7 +196,7 @@ class RecipeApi {
     const formData = new FormData();
     formData.append("image", file);
 
-    const token = localStorage.getItem("token");
+    const token = authStorage.getToken();
     const response = await this.safeFetch(`${API_BASE_URL}/recipes/${recipeId}/image`, {
       method: "POST",
       headers: {
@@ -267,7 +268,7 @@ class RecipeApi {
   }
 
   async getRecipe(id: number): Promise<Recipe> {
-    const token = localStorage.getItem("token");
+    const token = authStorage.getToken();
     const response = await this.safeFetch(`${API_BASE_URL}/recipes/${id}`, {
       headers: {
         Accept: "application/json",

@@ -517,15 +517,15 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                                 {recipe.steps?.map((step, index) => (
                                     <div key={step.id} className="flex gap-2 sm:gap-4 group">
                                         <div className="flex flex-col items-center gap-1.5 sm:gap-2">
-                                            <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg transition-all text-sm sm:text-base ${checkedSteps.has(step.id) ? 'opacity-50' : ''
+                                            <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg transition-all text-sm sm:text-base ${checkedSteps.has(step.id) ? 'opacity-30' : ''
                                                 }`}>
                                                 {index + 1}
                                             </div>
                                             <button
                                                 onClick={() => toggleStep(step.id)}
                                                 className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 transition-all ${checkedSteps.has(step.id)
-                                                    ? 'bg-green-500 border-green-500'
-                                                    : 'border-gray-300 hover:border-green-500'
+                                                    ? 'bg-orange-500 border-orange-500'
+                                                    : 'border-gray-300 hover:border-orange-500'
                                                     }`}
                                             >
                                                 {checkedSteps.has(step.id) && (
