@@ -69,7 +69,7 @@ export function RecipeDetailPage() {
             scrollToId: scrollToId
         };
 
-        navigate('/recepty', { state: returnState });
+        navigate('/', { state: returnState });
     };
 
     const handleEdit = () => {
@@ -87,7 +87,7 @@ export function RecipeDetailPage() {
                 scrollToId: 0 // Po smazání nescrollujeme
             };
 
-            navigate('/recepty', { state: returnState });
+            navigate('/', { state: returnState });
         } catch (err) {
             alert(err instanceof Error ? err.message : 'Nepodařilo se smazat recept');
         }

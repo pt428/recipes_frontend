@@ -23,7 +23,7 @@ export function ProfileDeletePage() {
         const loadUser = async () => {
             const token = authStorage.getToken();
             if (!token) {
-                navigate('/recepty');
+                navigate('/');
                 return;
             }
 
@@ -32,7 +32,7 @@ export function ProfileDeletePage() {
                 setUser(userData);
             } catch (err) {
                 console.error('Chyba při načítání uživatele:', err);
-                navigate('/recepty');
+                navigate('/');
             } finally {
                 setLoading(false);
             }
@@ -68,7 +68,7 @@ export function ProfileDeletePage() {
 
             // Odhlásit a přesměrovat
             authStorage.removeToken();
-            navigate('/recepty');
+            navigate('/');
 
         } catch (error) {
             if (error instanceof ValidationError) {
@@ -116,7 +116,7 @@ export function ProfileDeletePage() {
                 {/* Header */}
                 <div className="mb-6">
                     <button
-                        onClick={() => navigate('/recepty')}
+                        onClick={() => navigate('/')}
                         className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5" />

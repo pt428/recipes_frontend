@@ -233,18 +233,25 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
             }
         }
     };
-
+    // ✅ VYLEPŠENÁ FUNKCE: Odstraní zbytečné nuly a zobrazí max 2 desetinná místa
     const calculateAmount = (amount: string | null): string => {
         if (!amount) return '';
 
+        // Parsování čísla - parseFloat automaticky odstraní trailing zeros
         const numericAmount = parseFloat(amount);
         if (isNaN(numericAmount)) return amount;
 
+        // Výpočet nového množství
         const calculatedAmount = numericAmount * servingsMultiplier;
 
-        return calculatedAmount % 1 === 0
-            ? calculatedAmount.toString()
-            : calculatedAmount.toFixed(2).replace(/\.?0+$/, '');
+        // Pokud je celé číslo (včetně případů jako 2.0, 3.00), vrať čisté celé číslo
+        if (Number.isInteger(calculatedAmount)) {
+            return String(Math.round(calculatedAmount));
+        }
+
+        // Pro desetinná čísla: zaokrouhli na 2 místa a odstraň trailing zeros pomocí Number()
+        const rounded = Number(calculatedAmount.toFixed(1));
+        return String(rounded);
     };
 
     const getCountLabel = (): string => {
@@ -474,7 +481,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                             </div>
 
                             {/* Ingredients List - Responsive */}
-                            <div className="bg-orange-50 rounded-xl sm:rounded-2xl p-3 sm:p-6">
+                            {/* <div className="bg-orange-50 rounded-xl sm:rounded-2xl p-3 sm:p-6">
                                 <ul className="space-y-2 sm:space-y-3">
                                     {recipe.ingredients?.map((ingredient) => (
                                         <li key={ingredient.id} className="flex items-start gap-2 sm:gap-3 group">
@@ -504,6 +511,55 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                                         </li>
                                     ))}
                                 </ul>
+                            </div> */}
+
+
+                            {/* ✅ NOVÝ TABULKOVÝ LAYOUT PRO INGREDIENCE */}
+                            <div className="bg-orange-50 rounded-xl sm:rounded-2xl p-3 sm:p-6">
+                                <div className="space-y-2 sm:space-y-3">
+                                    {recipe.ingredients?.map((ingredient) => (
+                                        <div
+                                            key={ingredient.id}
+                                            className="flex items-start gap-2 sm:gap-3 group"
+                                        >
+                                            <button
+                                                onClick={() => toggleIngredient(ingredient.id)}
+                                                className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 mt-0.5 transition-all ${checkedIngredients.has(ingredient.id)
+                                                        ? 'bg-orange-500 border-orange-500'
+                                                        : 'border-orange-300 hover:border-orange-500'
+                                                    }`}
+                                            >
+                                                {checkedIngredients.has(ingredient.id) && (
+                                                    <Check className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                                )}
+                                            </button>
+
+                                            <div className={`flex-1 flex gap-2 sm:gap-2 items-baseline text-sm sm:text-base transition-all ${checkedIngredients.has(ingredient.id) ? 'line-through opacity-50' : ''
+                                                }`}>
+                                                {/* Množství */}
+                                                <span className={`text-right font-semibold w-12 sm:w-14 flex-shrink-0 ${servingsMultiplier !== 1 && ingredient.amount ? 'text-blue-600' : 'text-gray-700'
+                                                    }`}>
+                                                    {ingredient.amount ? calculateAmount(ingredient.amount) : ''}
+                                                </span>
+
+                                                {/* Jednotka */}
+                                                <span className="text-gray-600 w-16 sm:w-20 flex-shrink-0">
+                                                    {ingredient.unit || ''}
+                                                </span>
+
+                                                {/* Název a poznámka */}
+                                                <span className="text-gray-700 flex-1">
+                                                    {ingredient.name}
+                                                    {ingredient.note && (
+                                                        <span className="text-gray-500 italic ml-1">
+                                                            - {ingredient.note}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 

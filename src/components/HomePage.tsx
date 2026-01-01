@@ -179,7 +179,7 @@ export function HomePage() {
             authStorage.removeToken();
             setUser(null);
             loadRecipes(1);
-            navigate('/recepty');
+            navigate('/');
         }
     };
 
@@ -249,7 +249,7 @@ export function HomePage() {
         
 
         // A také předáme přes state
-        navigate(`/recepty/${recipeId}`, {
+        navigate(`/${recipeId}`, {
             state: returnState
         });
     };
