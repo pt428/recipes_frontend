@@ -1,6 +1,7 @@
+//frontend\src\components\Header.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChefHat, Search, LogIn, LogOut, User as UserIcon, Settings, Trash2, X, Tag as TagIcon, Plus, Filter } from 'lucide-react';
+import { ChefHat, Search, LogIn, LogOut, User as UserIcon, Settings, Trash2, X, Tag as TagIcon, Plus, Filter, Heart } from 'lucide-react';
 import type { HeaderProps, Tag, Category } from '../types';
 import { recipeApi } from '../api/recipeApi';
 
@@ -31,7 +32,6 @@ export const Header: React.FC<HeaderProps> = ({
     const prevSelectedCategory = useRef<number | null>(null);
     const navigate = useNavigate();
 
-    // Načtení tagů a kategorií při mounted
     useEffect(() => {
         const fetchFilters = async () => {
             try {
@@ -48,7 +48,6 @@ export const Header: React.FC<HeaderProps> = ({
         fetchFilters();
     }, []);
 
-    // Zavření menu při kliknutí mimo
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -61,7 +60,6 @@ export const Header: React.FC<HeaderProps> = ({
                 setShowCategoryDropdown(false);
             }
             if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
-                // Neklikli na hamburger tlačítko
                 const target = event.target as HTMLElement;
                 if (!target.closest('[data-sidebar-toggle]')) {
                     setShowSidebar(false);
@@ -78,19 +76,15 @@ export const Header: React.FC<HeaderProps> = ({
         };
     }, [showUserMenu, showTagDropdown, showCategoryDropdown, showSidebar]);
 
-    // Spuštění vyhledávání při změně query, tagů nebo kategorie
     useEffect(() => {
-        // Zkontrolujeme, zda se hodnoty skutečně změnily
         const queryChanged = prevSearchQuery.current !== searchQuery;
         const tagsChanged = JSON.stringify(prevSelectedTags.current) !== JSON.stringify(selectedTags);
         const categoryChanged = prevSelectedCategory.current !== selectedCategory;
 
-        // Aktualizujeme ref hodnoty
         prevSearchQuery.current = searchQuery;
         prevSelectedTags.current = selectedTags;
         prevSelectedCategory.current = selectedCategory;
 
-        // Volat onSearch pouze pokud se něco změnilo
         if (queryChanged || tagsChanged || categoryChanged) {
             const timeoutId = setTimeout(() => {
                 onSearch(searchQuery, selectedTags, selectedCategory);
@@ -139,7 +133,6 @@ export const Header: React.FC<HeaderProps> = ({
 
     return (
         <>
-            {/* Sidebar overlay */}
             {showSidebar && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
@@ -147,7 +140,6 @@ export const Header: React.FC<HeaderProps> = ({
                 />
             )}
 
-            {/* Sidebar */}
             <div
                 ref={sidebarRef}
                 className={`fixed top-0 left-0 h-full w-64 bg-white shadow-2xl z-50 transform transition-transform duration-300 ${showSidebar ? 'translate-x-0' : '-translate-x-full'
@@ -200,32 +192,62 @@ export const Header: React.FC<HeaderProps> = ({
                         </button>
 
                         {user && (
-                            <button
-                                onClick={() => {
-                                    setShowSidebar(false);
-                                    onViewChange?.('my');
-                                }}
-                                className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors group ${activeView === 'my'
-                                    ? 'bg-orange-500 text-white'
-                                    : 'hover:bg-orange-50'
-                                    }`}
-                            >
-                                <UserIcon className={`w-5 h-5 ${activeView === 'my'
-                                    ? 'text-white'
-                                    : 'text-gray-600 group-hover:text-orange-600'
-                                    }`} />
-                                <span className={`font-medium ${activeView === 'my'
-                                    ? 'text-white font-semibold'
-                                    : 'text-gray-700 group-hover:text-orange-600'
-                                    }`}>
-                                    Moje recepty
-                                </span>
-                                {activeView === 'my' && (
-                                    <svg className="w-4 h-4 ml-auto text-white" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                )}
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => {
+                                        setShowSidebar(false);
+                                        onViewChange?.('my');
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors group ${activeView === 'my'
+                                        ? 'bg-orange-500 text-white'
+                                        : 'hover:bg-orange-50'
+                                        }`}
+                                >
+                                    <UserIcon className={`w-5 h-5 ${activeView === 'my'
+                                        ? 'text-white'
+                                        : 'text-gray-600 group-hover:text-orange-600'
+                                        }`} />
+                                    <span className={`font-medium ${activeView === 'my'
+                                        ? 'text-white font-semibold'
+                                        : 'text-gray-700 group-hover:text-orange-600'
+                                        }`}>
+                                        Moje recepty
+                                    </span>
+                                    {activeView === 'my' && (
+                                        <svg className="w-4 h-4 ml-auto text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        </svg>
+                                    )}
+                                </button>
+
+                                {/* ✅ NOVÉ: Záložka Oblíbené */}
+                                <button
+                                    onClick={() => {
+                                        setShowSidebar(false);
+                                        onViewChange?.('favorites');
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors group ${activeView === 'favorites'
+                                        ? 'bg-orange-500 text-white'
+                                        : 'hover:bg-orange-50'
+                                        }`}
+                                >
+                                    <Heart className={`w-5 h-5 ${activeView === 'favorites'
+                                        ? 'text-white'
+                                        : 'text-gray-600 group-hover:text-orange-600'
+                                        }`} />
+                                    <span className={`font-medium ${activeView === 'favorites'
+                                        ? 'text-white font-semibold'
+                                        : 'text-gray-700 group-hover:text-orange-600'
+                                        }`}>
+                                        Oblíbené
+                                    </span>
+                                    {activeView === 'favorites' && (
+                                        <svg className="w-4 h-4 ml-auto text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        </svg>
+                                    )}
+                                </button>
+                            </>
                         )}
 
                         {user && (
@@ -249,9 +271,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <header className="bg-white shadow-md sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 py-2">
-                    {/* Main row - všechno na jednom řádku */}
                     <div className="flex items-center gap-2 sm:gap-3">
-                        {/* Hamburger menu */}
                         <button
                             data-sidebar-toggle
                             onClick={() => setShowSidebar(!showSidebar)}
@@ -262,10 +282,9 @@ export const Header: React.FC<HeaderProps> = ({
                             </svg>
                         </button>
 
-                        {/* Logo */}
                         <div
                             className="flex items-center gap-2 cursor-pointer flex-shrink-0"
-                            onClick={() => navigate('/recepty/')}
+                            onClick={() => navigate('/')}
                         >
                             <div className="bg-gradient-to-br from-orange-500 to-red-500 p-1.5 sm:p-2 rounded-lg shadow-lg">
                                 <ChefHat className="w-5 h-5 text-white" />
@@ -275,7 +294,6 @@ export const Header: React.FC<HeaderProps> = ({
                             </h1>
                         </div>
 
-                        {/* Search bar */}
                         <div className="relative flex-1 min-w-0">
                             <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                             <input
@@ -295,7 +313,6 @@ export const Header: React.FC<HeaderProps> = ({
                             )}
                         </div>
 
-                        {/* Category filter */}
                         <div className="relative flex-shrink-0" ref={categoryDropdownRef}>
                             <button
                                 onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
@@ -320,7 +337,6 @@ export const Header: React.FC<HeaderProps> = ({
                                 )}
                             </button>
 
-                            {/* Category dropdown */}
                             {showCategoryDropdown && (
                                 <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-gray-200 py-2 w-[220px] max-h-[400px] overflow-y-auto z-50">
                                     <div className="px-3 py-2 border-b border-gray-100 sticky top-0 bg-white">
@@ -363,7 +379,6 @@ export const Header: React.FC<HeaderProps> = ({
                             )}
                         </div>
 
-                        {/* Tag filter */}
                         <div className="relative flex-shrink-0" ref={tagDropdownRef}>
                             <button
                                 onClick={() => setShowTagDropdown(!showTagDropdown)}
@@ -378,7 +393,6 @@ export const Header: React.FC<HeaderProps> = ({
                                 )}
                             </button>
 
-                            {/* Tag dropdown */}
                             {showTagDropdown && (
                                 <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-gray-200 py-2 w-[280px] max-h-[400px] overflow-y-auto z-50">
                                     <div className="px-3 py-2 border-b border-gray-100 sticky top-0 bg-white">
@@ -429,7 +443,6 @@ export const Header: React.FC<HeaderProps> = ({
                             )}
                         </div>
 
-                        {/* User menu */}
                         <div className="flex-shrink-0">
                             {user ? (
                                 <div className="relative" ref={menuRef}>
@@ -451,11 +464,10 @@ export const Header: React.FC<HeaderProps> = ({
                                         </svg>
                                     </button>
 
-                                    {/* User dropdown */}
                                     {showUserMenu && (
                                         <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-gray-200 py-2 min-w-[220px] z-50">
                                             <div className="px-4 py-2 border-b border-gray-100">
-                                                                                               <p className="font-semibold text-gray-700 truncate text-sm">{user.name}</p>
+                                                <p className="font-semibold text-gray-700 truncate text-sm">{user.name}</p>
                                                 <p className="text-xs text-gray-500 truncate">{user.email}</p>
                                             </div>
 
@@ -502,12 +514,10 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                     </div>
 
-                    {/* Selected filters row - zobrazí se jen když jsou aktivní filtry */}
                     {hasActiveFilters && (
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                             <span className="text-xs text-gray-500">Filtry:</span>
 
-                            {/* Selected category */}
                             {selectedCategory && (
                                 <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-xs">
                                     <span>{availableCategories.find(c => c.id === selectedCategory)?.name}</span>
@@ -520,7 +530,6 @@ export const Header: React.FC<HeaderProps> = ({
                                 </div>
                             )}
 
-                            {/* Selected tags */}
                             {availableTags
                                 .filter(tag => selectedTags.includes(tag.id))
                                 .map(tag => (

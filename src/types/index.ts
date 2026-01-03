@@ -173,8 +173,8 @@ export interface HeaderProps {
   availableTags?: Tag[];
   selectedTagIds?: number[];
   onTagsChange?: (tagIds: number[]) => void;
-  onViewChange?: (view: "all" | "my") => void;
+  onViewChange?: (view: "all" | "my" | "favorites") => void; // ✅ UPRAVENO
   onCreateRecipe?: () => void;
-  activeView?: "all" | "my";
+  activeView?: "all" | "my" | "favorites"; // ✅ UPRAVENO
 }
  

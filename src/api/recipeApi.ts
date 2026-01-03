@@ -353,6 +353,100 @@ class RecipeApi {
 
     return Array.isArray(categories) ? categories : [];
   }
+
+  // ============================================================================
+  // ✅ OBLÍBENÉ RECEPTY - OPRAVENO PODLE SKUTEČNÝCH BACKEND ROUTES
+  // ============================================================================
+  // Backend routes z api.php:
+  // GET    /api/favorites/                        → FavoriteController@index
+  // POST   /api/favorites/recipes/{recipe}        → FavoriteController@store
+  // DELETE /api/favorites/recipes/{recipe}        → FavoriteController@destroy
+  // GET    /api/favorites/recipes/{recipe}/check  → FavoriteController@check
+  // ============================================================================
+
+  /**
+   * Načte všechny oblíbené recepty uživatele
+   * Backend route: GET /api/favorites/
+   */
+  async getFavoriteRecipes(page: number = 1, perPage: number = 12): Promise<{ recipes: Recipe[]; totalPages: number; total: number }> {
+    const response = await this.safeFetch(`${API_BASE_URL}/favorites?page=${page}&per_page=${perPage}`, {
+      headers: this.getHeaders(true),
+    });
+
+    const json = await response.json();
+    // console.log("🔍 Raw API response for favorites:", json);
+
+    // Backend vrací: { data: { data: [...], current_page, last_page, ... } }
+    const paginatorData = json.data;
+
+    // console.log("🔍 Paginator data:", paginatorData);
+
+    // Pokud paginatorData obsahuje 'data' property, použij ji
+    if (paginatorData && typeof paginatorData === "object" && "data" in paginatorData) {
+      return {
+        recipes: paginatorData.data || [],
+        totalPages: paginatorData.last_page || 1,
+        total: paginatorData.total || 0,
+      };
+    }
+
+    // Fallback - pokud je to přímo pole
+    if (Array.isArray(paginatorData)) {
+      return {
+        recipes: paginatorData,
+        totalPages: 1,
+        total: paginatorData.length,
+      };
+    }
+
+    // Fallback - prázdný výsledek
+    return {
+      recipes: [],
+      totalPages: 1,
+      total: 0,
+    };
+  }
+
+  /**
+   * Přidá recept do oblíbených
+   * Backend route: POST /api/favorites/recipes/{recipe}
+   */
+  async addToFavorites(recipeId: number): Promise<{ recipe_id: number; is_favorite: boolean }> {
+    // console.log("🔵 API: Přidávám do oblíbených recept ID:", recipeId);
+    const response = await this.safeFetch(`${API_BASE_URL}/favorites/recipes/${recipeId}`, {
+      method: "POST",
+      headers: this.getHeaders(true),
+    });
+    const result = await this.handleResponse<{ recipe_id: number; is_favorite: boolean }>(response);
+    // console.log("✅ API: Odpověď z addToFavorites:", result);
+    return result;
+  }
+
+  /**
+   * Odebere recept z oblíbených
+   * Backend route: DELETE /api/favorites/recipes/{recipe}
+   */
+  async removeFromFavorites(recipeId: number): Promise<{ recipe_id: number; is_favorite: boolean }> {
+    const response = await this.safeFetch(`${API_BASE_URL}/favorites/recipes/${recipeId}`, {
+      method: "DELETE",
+      headers: this.getHeaders(true),
+    });
+    return this.handleResponse<{ recipe_id: number; is_favorite: boolean }>(response);
+  }
+
+  /**
+   * Zkontroluje, zda je recept v oblíbených
+   * Backend route: GET /api/favorites/recipes/{recipe}/check
+   */
+  async checkFavoriteStatus(recipeId: number): Promise<{ recipe_id: number; is_favorite: boolean }> {
+    // console.log("🔍 API: Kontroluji stav oblíbeného pro recept ID:", recipeId);
+    const response = await this.safeFetch(`${API_BASE_URL}/favorites/recipes/${recipeId}/check`, {
+      headers: this.getHeaders(true),
+    });
+    const result = await this.handleResponse<{ recipe_id: number; is_favorite: boolean }>(response);
+    // console.log("✅ API: Odpověď z checkFavoriteStatus:", result);
+    return result;
+  }
 }
 
 export const recipeApi = new RecipeApi();

@@ -1,5 +1,5 @@
 //frontend\src\components\HomePage.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Header } from './Header';
 import { AuthModal } from './AuthModal';
@@ -15,7 +15,6 @@ interface RecipeListReturnState {
     scrollToId: number;
 }
 
-// Rozšíření Window interface pro TypeScript
 declare global {
     interface Window {
         _pendingScrollTo?: number;
@@ -30,7 +29,7 @@ export function HomePage() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'all' | 'my'>('all');
+    const [activeTab, setActiveTab] = useState<'all' | 'my' | 'favorites'>('all');
     const [showRecipeForm, setShowRecipeForm] = useState<boolean>(false);
     const [editingRecipe, setEditingRecipe] = useState<Recipe | undefined>(undefined);
     const [authContext, setAuthContext] = useState<'default' | 'create-recipe'>('default');
@@ -42,55 +41,54 @@ export function HomePage() {
     const [currentSearchTags, setCurrentSearchTags] = useState<number[]>([]);
     const [currentSearchCategory, setCurrentSearchCategory] = useState<number | null>(null);
 
-    useEffect(() => {     
+    // ✅ NOVÉ: State pro oblíbené recepty
+    const [favoriteRecipeIds, setFavoriteRecipeIds] = useState<Set<number>>(new Set());
+    const favoritesLoadedRef = useRef(false);
+
+    // ✅ 1. UseEffect: Načti uživatele při startu
+    useEffect(() => {
         const token = authStorage.getToken();
         if (token) {
             loadUser();
         }
+    }, []);
 
-        // Zkontrolujeme location.state NEBO sessionStorage
+    // ✅ 2. UseEffect: Načti recepty při startu (+ scrollování)
+    useEffect(() => {
         const state = location.state as RecipeListReturnState | null;
-        const sessionData = sessionStorage.getItem('recipeListReturn_v2'); // ✅ Nový klíč
+        const sessionData = sessionStorage.getItem('recipeListReturn_v2');
 
         let returnPage = 1;
         let scrollToId: number | null = null;
 
-        // Priorita: location.state > sessionStorage
         if (state?.page) {
             returnPage = state.page;
             scrollToId = state.scrollToId || null;
-           
         } else if (sessionData) {
             try {
                 const data: RecipeListReturnState = JSON.parse(sessionData);
                 returnPage = data.page || 1;
                 scrollToId = data.scrollToId || null;
-                
-                // Vymažeme aby se nepoužil příště
                 sessionStorage.removeItem('recipeListReturn_v2');
             } catch (e) {
                 console.error('Chyba při parsování sessionStorage:', e);
             }
-        } 
-       
+        }
+
         loadRecipes(returnPage);
 
-        // Uložíme scrollToId pro druhý useEffect
         if (scrollToId) {
             window._pendingScrollTo = scrollToId;
-            
         }
     }, []);
 
-    // Samostatný effect pro scrollování když se načtou recepty
     useEffect(() => {
         const scrollToId = window._pendingScrollTo;
 
         if (scrollToId && recipes.length > 0 && !loading) {
-          
             setTimeout(() => {
                 const element = document.getElementById(`recipe-${scrollToId}`);
-                
+
                 if (element) {
                     element.scrollIntoView({ behavior: 'auto', block: 'center' });
                     element.classList.add('highlight-recipe');
@@ -99,41 +97,145 @@ export function HomePage() {
                     }, 2000);
                 }
 
-                // Vyčistíme
                 delete window._pendingScrollTo;
                 window.history.replaceState({}, document.title);
             }, 300);
         }
     }, [recipes, loading]);
 
-    const loadUser = async () => {
+    // ✅ 3. UseEffect: Když se načte user a jsou recepty, načti oblíbené (jen jednou)
+    useEffect(() => {
+        if (user && recipes.length > 0 && !favoritesLoadedRef.current && activeTab !== 'favorites' && !loading) {
+            // console.log('📌 User je načten, načítám stav oblíbených poprvé...');
+            loadFavoriteStatus(recipes);
+            favoritesLoadedRef.current = true;
+        }
+    }, [user, recipes.length, activeTab, loading]);
+
+    const loadUser = async (): Promise<User | null> => {
         try {
             const userData = await recipeApi.getCurrentUser();
             setUser(userData);
+            return userData;
         } catch (err) {
             console.error('Chyba při načítání uživatele:', err);
             authStorage.removeToken();
+            return null;
         }
     };
 
     const loadRecipes = async (page: number = 1): Promise<void> => {
-      
+        await loadRecipesForView(activeTab, page);
+    };
+
+    // ✅ NOVÉ: Načte recepty pro konkrétní záložku
+    const loadRecipesForView = async (view: 'all' | 'my' | 'favorites', page: number = 1): Promise<void> => {
         try {
             setLoading(true);
-             
-            const data = await recipeApi.getRecipes(page, recipesPerPage);
- 
+            favoritesLoadedRef.current = false; // ✅ Reset při načítání nové stránky
+
+            let data;
+            if (view === 'favorites') {
+                // ✅ Načti oblíbené recepty
+                data = await recipeApi.getFavoriteRecipes(page, recipesPerPage);
+                // console.log('📌 Načtené oblíbené recepty:', data.recipes.length);
+            } else {
+                // Načti běžné recepty
+                data = await recipeApi.getRecipes(page, recipesPerPage);
+                // console.log('📌 Načtené recepty:', data.recipes.length);
+            }
 
             setRecipes(data.recipes);
             setTotalPages(data.totalPages);
             setTotalRecipes(data.total);
             setCurrentPage(page);
             setError(null);
+
+            // ✅ Načti stav oblíbených pro aktuální recepty
+            if (user && view !== 'favorites') {
+                // console.log('📌 Načítám stav oblíbených pro uživatele:', user.name);
+                await loadFavoriteStatus(data.recipes);
+                favoritesLoadedRef.current = true;
+            } else if (view === 'favorites') {
+                // Všechny recepty v záložce oblíbených jsou oblíbené
+                const ids = new Set(data.recipes.map(r => r.id));
+                // console.log('📌 Nastavuji oblíbené IDs:', Array.from(ids));
+                setFavoriteRecipeIds(ids);
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Nepodařilo se načíst recepty');
         } finally {
             setLoading(false);
         }
+    };
+
+    // ✅ OPTIMALIZOVÁNO: Načte všechny oblíbené recepty najednou
+    const loadFavoriteStatus = async (recipesToCheck: Recipe[]) => {
+        if (!user) {
+            // console.log('⚠️ Žádný user, nastavuji prázdný Set oblíbených');
+            setFavoriteRecipeIds(new Set());
+            return;
+        }
+
+        try {
+            
+            // Načti VŠECHNY oblíbené recepty uživatele (jen první stránku pro rychlost)
+            const favoritesData = await recipeApi.getFavoriteRecipes(1, 100);
+             
+
+            // Vytvoř Set ID všech oblíbených receptů
+            const allFavoriteIds = new Set(favoritesData.recipes.map(r => r.id));
+             
+
+            setFavoriteRecipeIds(allFavoriteIds);
+
+            
+        } catch (err) {
+            console.error('❌ Chyba při načítání stavu oblíbených:', err);
+            // V případě chyby zkus fallback - kontrola jednotlivých receptů
+            try {
+               
+                const checks = await Promise.all(
+                    recipesToCheck.slice(0, 12).map(recipe =>
+                        recipeApi.checkFavoriteStatus(recipe.id)
+                            .catch(() => ({ recipe_id: recipe.id, is_favorite: false }))
+                    )
+                );
+
+                const favoriteIds = new Set(
+                    checks
+                        .filter(check => check.is_favorite)
+                        .map(check => check.recipe_id)
+                );
+
+              
+                setFavoriteRecipeIds(favoriteIds);
+            } catch (fallbackErr) {
+                console.error('❌ Fallback také selhal:', fallbackErr);
+            }
+        }
+    };
+
+    // ✅ NOVÉ: Handler pro změnu oblíbených
+    const handleFavoriteChange = (recipeId: number, isFavorite: boolean) => {
+       
+        setFavoriteRecipeIds(prev => {
+            const newSet = new Set(prev);
+            if (isFavorite) {
+                newSet.add(recipeId);
+            } else {
+                newSet.delete(recipeId);
+
+                // Pokud jsme v záložce oblíbených a recept byl odebrán, 
+                // odstraň ho ze seznamu
+                if (activeTab === 'favorites') {
+                    setRecipes(prev => prev.filter(r => r.id !== recipeId));
+                    setTotalRecipes(prev => prev - 1);
+                }
+            }
+          
+            return newSet;
+        });
     };
 
     const handleCreateRecipe = (): void => {
@@ -178,6 +280,7 @@ export function HomePage() {
         } finally {
             authStorage.removeToken();
             setUser(null);
+            setFavoriteRecipeIds(new Set());
             loadRecipes(1);
             navigate('/');
         }
@@ -200,6 +303,12 @@ export function HomePage() {
             setTotalPages(data.totalPages);
             setTotalRecipes(data.total);
             setCurrentPage(1);
+
+            // ✅ Načti stav oblíbených pro výsledky hledání
+            if (user) {
+                await loadFavoriteStatus(data.recipes);
+            }
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Chyba při vyhledávání');
@@ -211,7 +320,6 @@ export function HomePage() {
     const handlePageChange = async (page: number) => {
         if (page < 1 || page > totalPages) return;
 
-        // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
         if (currentSearchQuery || currentSearchTags.length > 0 || currentSearchCategory) {
@@ -228,6 +336,10 @@ export function HomePage() {
                 setTotalPages(data.totalPages);
                 setTotalRecipes(data.total);
                 setCurrentPage(page);
+
+                if (user) {
+                    await loadFavoriteStatus(data.recipes);
+                }
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Chyba při načítání stránky');
             } finally {
@@ -239,24 +351,37 @@ export function HomePage() {
     };
 
     const handleRecipeClick = (recipeId: number) => {
-        // Uložíme do sessionStorage jako záloha
         const returnState: RecipeListReturnState = {
             page: currentPage,
             scrollToId: recipeId
         };
         sessionStorage.setItem('recipeListReturn_v2', JSON.stringify(returnState));
 
-        
-
-        // A také předáme přes state
         navigate(`/${recipeId}`, {
             state: returnState
         });
     };
 
+    // ✅ UPRAVENO: Přidána podpora pro záložku oblíbených
+    const handleViewChange = (view: 'all' | 'my' | 'favorites') => {
+    
+        setActiveTab(view);
+        setCurrentPage(1);
+        setCurrentSearchQuery('');
+        setCurrentSearchTags([]);
+        setCurrentSearchCategory(null);
+        favoritesLoadedRef.current = false; // Reset pro novou záložku
+
+        // ✅ OPRAVA: Okamžitě načti recepty - předej view jako parametr
+        loadRecipesForView(view, 1);
+    };
+
     const filteredRecipes: Recipe[] = (recipes || []).filter(recipe => {
         if (activeTab === 'my' && user) {
             return recipe.user_id === user.id;
+        }
+        if (activeTab === 'favorites') {
+            return true; // Již filtrováno API
         }
         return true;
     });
@@ -289,7 +414,7 @@ export function HomePage() {
                 onLoginClick={() => setShowAuthModal(true)}
                 onLogoutClick={handleLogout}
                 onSearch={handleSearch}
-                onViewChange={(view) => setActiveTab(view === 'my' ? 'my' : 'all')}
+                onViewChange={handleViewChange}
                 onCreateRecipe={handleCreateRecipe}
                 activeView={activeTab}
             />
@@ -316,15 +441,21 @@ export function HomePage() {
                 ) : (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredRecipes.map(recipe => (
-                                <div key={recipe.id} id={`recipe-${recipe.id}`}>
-                                    <RecipeCard
-                                        recipe={recipe}
-                                        onClick={() => handleRecipeClick(recipe.id)}
-                                        currentUser={user}
-                                    />
-                                </div>
-                            ))}
+                            {filteredRecipes.map(recipe => {
+                                const isFav = favoriteRecipeIds.has(recipe.id);
+                             
+                                return (
+                                    <div key={recipe.id} id={`recipe-${recipe.id}`}>
+                                        <RecipeCard
+                                            recipe={recipe}
+                                            onClick={() => handleRecipeClick(recipe.id)}
+                                            currentUser={user}
+                                            isFavorite={isFav}
+                                            onFavoriteChange={handleFavoriteChange}
+                                        />
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         <div className="text-center mt-6 mb-4">
@@ -422,7 +553,11 @@ export function HomePage() {
                 {!loading && !error && filteredRecipes.length === 0 && (
                     <div className="text-center py-20">
                         <ChefHat className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-                        <p className="text-xl text-gray-500">Žádné recepty nenalezeny</p>
+                        <p className="text-xl text-gray-500">
+                            {activeTab === 'favorites'
+                                ? 'Zatím nemáte žádné oblíbené recepty'
+                                : 'Žádné recepty nenalezeny'}
+                        </p>
                     </div>
                 )}
             </div>

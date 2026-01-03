@@ -61,7 +61,7 @@ export function RecipeDetailPage() {
         const returnPage = state?.page || 1;
         const scrollToId = state?.scrollToId || (id ? parseInt(id) : 0);
 
-        console.log('⬅️ Navigace zpět:', { returnPage, scrollToId });
+        
 
         // Vrátíme se na HomePage s state
         const returnState: RecipeListReturnState = {
