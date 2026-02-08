@@ -1,4 +1,3 @@
-//frontend\src\components\HomePage.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Header } from './Header';
@@ -6,7 +5,7 @@ import { AuthModal } from './AuthModal';
 import { RecipeCard } from './RecipeCard';
 import { recipeApi } from '../api/recipeApi';
 import type { Recipe, User, LoginCredentials } from '../types';
-import { ChefHat, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChefHat, ArrowUp } from 'lucide-react';
 import { RecipeForm } from './RecipeForm';
 import { authStorage } from '../services/auth';
 
@@ -41,11 +40,13 @@ export function HomePage() {
     const [currentSearchQuery, setCurrentSearchQuery] = useState('');
     const [currentSearchTags, setCurrentSearchTags] = useState<number[]>([]);
     const [currentSearchCategory, setCurrentSearchCategory] = useState<number | null>(null);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [showScrollTop, setShowScrollTop] = useState(false);
 
     const [favoriteRecipeIds, setFavoriteRecipeIds] = useState<Set<number>>(new Set());
     const favoritesLoadedRef = useRef(false);
     const initialLoadDone = useRef(false);
-    const isLoadingRef = useRef(false); // ✅ NOVÉ: Prevence duplicitních načtení
+    const isLoadingRef = useRef(false);
 
     // ✅ 1. UseEffect: Načti uživatele při startu
     useEffect(() => {
@@ -57,21 +58,14 @@ export function HomePage() {
 
     // ✅ 2. UseEffect: Zpracování návratu z detailu
     useEffect(() => {
-        // Zamezení duplicitním načtením
         if (isLoadingRef.current) {
-            // console.log('⚠️ Načítání již probíhá, přeskakuji...');
             return;
         }
 
         const state = location.state as RecipeListReturnState | null;
         const sessionData = sessionStorage.getItem('recipeListReturn_v2');
 
-        // console.log('🔍 Location state:', state);
-        // console.log('🔍 Session data:', sessionData);
-        // console.log('🔍 Aktuální activeTab:', activeTab);
-
         if (state?.page || sessionData) {
-            // Návrat z detailu
             let returnPage = 1;
             let scrollToId: number | null = null;
             let returnTab: 'all' | 'my' | 'favorites' = 'all';
@@ -80,7 +74,6 @@ export function HomePage() {
                 returnPage = state.page;
                 scrollToId = state.scrollToId || null;
                 returnTab = state.activeTab || 'all';
-                // console.log('📌 Obnovuji z location.state:', { returnPage, scrollToId, returnTab });
             } else if (sessionData) {
                 try {
                     const data: RecipeListReturnState = JSON.parse(sessionData);
@@ -88,28 +81,21 @@ export function HomePage() {
                     scrollToId = data.scrollToId || null;
                     returnTab = data.activeTab || 'all';
                     sessionStorage.removeItem('recipeListReturn_v2');
-                    // console.log('📌 Obnovuji ze sessionStorage:', { returnPage, scrollToId, returnTab });
                 } catch (e) {
                     console.error('Chyba při parsování sessionStorage:', e);
                 }
             }
 
-            // console.log('✅ Nastavuji activeTab na:', returnTab);
             setActiveTab(returnTab);
-
-            // console.log('✅ Volám loadRecipesForView s:', { view: returnTab, page: returnPage });
-            loadRecipesForView(returnTab, returnPage);
+            loadRecipesForView(returnTab, returnPage, false);
 
             if (scrollToId) {
                 window._pendingScrollTo = scrollToId;
             }
 
-            // Vyčistit state po zpracování
             window.history.replaceState({}, document.title);
         } else if (!initialLoadDone.current) {
-            // První načtení - bez uloženého stavu
-            // console.log('📌 První načtení - načítám všechny recepty');
-            loadRecipesForView('all', 1);
+            loadRecipesForView('all', 1, false);
             initialLoadDone.current = true;
         }
     }, [location.key]);
@@ -134,14 +120,28 @@ export function HomePage() {
         }
     }, [recipes, loading]);
 
-    // ✅ 3. UseEffect: Když se načte user a jsou recepty, načti oblíbené (jen jednou)
+    // ✅ 3. UseEffect: Když se načte user a jsou recepty, načti oblíbené
     useEffect(() => {
         if (user && recipes.length > 0 && !favoritesLoadedRef.current && activeTab !== 'favorites' && !loading) {
-            // console.log('📌 User je načten, načítám stav oblíbených poprvé...');
             loadFavoriteStatus(recipes);
             favoritesLoadedRef.current = true;
         }
     }, [user, recipes.length, activeTab, loading]);
+
+    // ✅ 4. UseEffect: Sledování scroll pozice pro zobrazení tlačítka "nahoru"
+    useEffect(() => {
+        const handleScroll = () => {
+            // Zobrazit tlačítko po scrollu více než 400px dolů
+            setShowScrollTop(window.scrollY > 400);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     const loadUser = async (): Promise<User | null> => {
         try {
@@ -155,84 +155,79 @@ export function HomePage() {
         }
     };
 
-    const loadRecipes = async (page: number = 1): Promise<void> => {
-        await loadRecipesForView(activeTab, page);
+    const loadRecipes = async (page: number = 1, append: boolean = false): Promise<void> => {
+        await loadRecipesForView(activeTab, page, append);
     };
 
-    const loadRecipesForView = async (view: 'all' | 'my' | 'favorites', page: number = 1): Promise<void> => {
-        // ✅ Zamezení duplicitním voláním
+    const loadRecipesForView = async (view: 'all' | 'my' | 'favorites', page: number = 1, append: boolean = false): Promise<void> => {
         if (isLoadingRef.current) {
-            // console.warn('⚠️ Načítání již probíhá, přeskakuji duplicitní volání');
             return;
         }
 
         try {
             isLoadingRef.current = true;
-            setLoading(true);
-            favoritesLoadedRef.current = false;
 
-            // console.log(`📌 === ZAČÁTEK NAČÍTÁNÍ ===`);
-            // console.log(`📌 Načítám recepty: view=${view}, page=${page}`);
+            if (append) {
+                setIsLoadingMore(true);
+            } else {
+                setLoading(true);
+                favoritesLoadedRef.current = false;
+            }
 
             let data;
             if (view === 'favorites') {
-               
                 data = await recipeApi.getFavoriteRecipes(page, recipesPerPage);
-            
             } else {
-                 
                 data = await recipeApi.getRecipes(page, recipesPerPage);
-                
             }
- 
-            setRecipes(data.recipes);
+
+            // ✅ Klíčová změna: append místo replace
+            if (append) {
+                setRecipes(prev => [...prev, ...data.recipes]);
+            } else {
+                setRecipes(data.recipes);
+            }
+
             setTotalPages(data.totalPages);
             setTotalRecipes(data.total);
             setCurrentPage(page);
             setError(null);
-          
 
             if (user && view !== 'favorites') {
-                 
                 await loadFavoriteStatus(data.recipes);
                 favoritesLoadedRef.current = true;
             } else if (view === 'favorites') {
                 const ids = new Set(data.recipes.map(r => r.id));
-                
-                setFavoriteRecipeIds(ids);
+                setFavoriteRecipeIds(prev => {
+                    if (append) {
+                        return new Set([...prev, ...ids]);
+                    }
+                    return ids;
+                });
             }
-
-            
         } catch (err) {
             console.error('❌ Chyba při načítání:', err);
             setError(err instanceof Error ? err.message : 'Nepodařilo se načíst recepty');
         } finally {
             setLoading(false);
+            setIsLoadingMore(false);
             isLoadingRef.current = false;
         }
     };
 
     const loadFavoriteStatus = async (recipesToCheck: Recipe[]) => {
         if (!user) {
-        
             setFavoriteRecipeIds(new Set());
             return;
         }
 
         try {
-             
             const favoritesData = await recipeApi.getFavoriteRecipes(1, 100);
-          
-
             const allFavoriteIds = new Set(favoritesData.recipes.map(r => r.id));
-            
-
             setFavoriteRecipeIds(allFavoriteIds);
-             
         } catch (err) {
             console.error('❌ Chyba při načítání stavu oblíbených:', err);
             try {
-               
                 const checks = await Promise.all(
                     recipesToCheck.slice(0, 12).map(recipe =>
                         recipeApi.checkFavoriteStatus(recipe.id)
@@ -246,7 +241,6 @@ export function HomePage() {
                         .map(check => check.recipe_id)
                 );
 
-               
                 setFavoriteRecipeIds(favoriteIds);
             } catch (fallbackErr) {
                 console.error('❌ Fallback také selhal:', fallbackErr);
@@ -255,7 +249,6 @@ export function HomePage() {
     };
 
     const handleFavoriteChange = (recipeId: number, isFavorite: boolean) => {
-       
         setFavoriteRecipeIds(prev => {
             const newSet = new Set(prev);
             if (isFavorite) {
@@ -268,7 +261,6 @@ export function HomePage() {
                     setTotalRecipes(prev => prev - 1);
                 }
             }
-           
             return newSet;
         });
     };
@@ -284,7 +276,7 @@ export function HomePage() {
     };
 
     const handleRecipeFormSuccess = (): void => {
-        loadRecipes(currentPage);
+        loadRecipes(1, false);
         setShowRecipeForm(false);
         setEditingRecipe(undefined);
     };
@@ -301,7 +293,7 @@ export function HomePage() {
                 setShowRecipeForm(true);
             }
             setAuthContext('default');
-            loadRecipes(currentPage);
+            loadRecipes(1, false);
         } catch (err: unknown) {
             throw err;
         }
@@ -316,7 +308,7 @@ export function HomePage() {
             authStorage.removeToken();
             setUser(null);
             setFavoriteRecipeIds(new Set());
-            loadRecipes(1);
+            loadRecipes(1, false);
             navigate('/');
         }
     };
@@ -327,7 +319,7 @@ export function HomePage() {
         setCurrentSearchCategory(categoryId ?? null);
 
         if (!query.trim() && (!tagIds || tagIds.length === 0) && !categoryId) {
-            loadRecipes(1);
+            loadRecipes(1, false);
             return;
         }
 
@@ -351,36 +343,36 @@ export function HomePage() {
         }
     };
 
-    const handlePageChange = async (page: number) => {
-        if (page < 1 || page > totalPages) return;
-
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    // ✅ Nová funkce pro načítání dalších receptů
+    const handleLoadMore = async () => {
+        const nextPage = currentPage + 1;
 
         if (currentSearchQuery || currentSearchTags.length > 0 || currentSearchCategory) {
             try {
-                setLoading(true);
+                setIsLoadingMore(true);
                 const data = await recipeApi.searchRecipes(
                     currentSearchQuery,
                     currentSearchTags,
                     currentSearchCategory,
-                    page,
+                    nextPage,
                     recipesPerPage
                 );
-                setRecipes(data.recipes);
+
+                setRecipes(prev => [...prev, ...data.recipes]);
                 setTotalPages(data.totalPages);
                 setTotalRecipes(data.total);
-                setCurrentPage(page);
+                setCurrentPage(nextPage);
 
                 if (user) {
                     await loadFavoriteStatus(data.recipes);
                 }
             } catch (err) {
-                setError(err instanceof Error ? err.message : 'Chyba při načítání stránky');
+                setError(err instanceof Error ? err.message : 'Chyba při načítání dalších receptů');
             } finally {
-                setLoading(false);
+                setIsLoadingMore(false);
             }
         } else {
-            loadRecipes(page);
+            loadRecipes(nextPage, true);
         }
     };
 
@@ -391,7 +383,6 @@ export function HomePage() {
             activeTab: activeTab
         };
 
-        
         sessionStorage.setItem('recipeListReturn_v2', JSON.stringify(returnState));
 
         navigate(`/${recipeId}`, {
@@ -400,7 +391,6 @@ export function HomePage() {
     };
 
     const handleViewChange = (view: 'all' | 'my' | 'favorites') => {
-        
         setActiveTab(view);
         setCurrentPage(1);
         setCurrentSearchQuery('');
@@ -408,7 +398,7 @@ export function HomePage() {
         setCurrentSearchCategory(null);
         favoritesLoadedRef.current = false;
 
-        loadRecipesForView(view, 1);
+        loadRecipesForView(view, 1, false);
     };
 
     const filteredRecipes: Recipe[] = (recipes || []).filter(recipe => {
@@ -416,12 +406,13 @@ export function HomePage() {
             return recipe.user_id === user.id;
         }
         if (activeTab === 'favorites') {
-            return true; // API už vrací jen oblíbené
+            return true;
         }
         return true;
     });
 
-    
+    const hasMore = currentPage < totalPages;
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
             {showRecipeForm && (
@@ -467,7 +458,7 @@ export function HomePage() {
                         <button
                             onClick={() => {
                                 navigate('/recepty?page=1');
-                                loadRecipes(1);
+                                loadRecipes(1, false);
                             }}
                             className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-xl"
                         >
@@ -493,92 +484,29 @@ export function HomePage() {
                             })}
                         </div>
 
+                        {/* ✅ Info o zobrazených receptech */}
                         <div className="text-center mt-6 mb-4">
                             <p className="text-sm text-gray-600">
-                                Zobrazeno {((currentPage - 1) * recipesPerPage) + 1}–{Math.min(currentPage * recipesPerPage, totalRecipes)} z {totalRecipes} receptů
+                                Zobrazeno {recipes.length} z {totalRecipes} receptů
                             </p>
                         </div>
 
-                        {totalPages > 1 && (
-                            <div className="flex justify-center items-center gap-2 mt-8">
+                        {/* ✅ Tlačítko "Načíst další" místo stránkování */}
+                        {hasMore && (
+                            <div className="flex justify-center mt-8 mb-8">
                                 <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className="px-3 py-2 rounded-lg border-2 border-gray-300 hover:border-orange-500 hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
-                                    aria-label="Předchozí stránka"
+                                    onClick={handleLoadMore}
+                                    disabled={isLoadingMore}
+                                    className="px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-orange-500 flex items-center gap-2"
                                 >
-                                    <ChevronLeft className="w-5 h-5" />
-                                </button>
-
-                                {(() => {
-                                    const pages = [];
-                                    const showPages = 5;
-                                    let startPage = Math.max(1, currentPage - Math.floor(showPages / 2));
-                                    const endPage = Math.min(totalPages, startPage + showPages - 1);
-
-                                    if (endPage - startPage < showPages - 1) {
-                                        startPage = Math.max(1, endPage - showPages + 1);
-                                    }
-
-                                    if (startPage > 1) {
-                                        pages.push(
-                                            <button
-                                                key={1}
-                                                onClick={() => handlePageChange(1)}
-                                                className="px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-orange-500 hover:bg-orange-50 transition-colors"
-                                            >
-                                                1
-                                            </button>
-                                        );
-                                        if (startPage > 2) {
-                                            pages.push(
-                                                <span key="ellipsis-start" className="px-2 text-gray-500">...</span>
-                                            );
-                                        }
-                                    }
-
-                                    for (let i = startPage; i <= endPage; i++) {
-                                        pages.push(
-                                            <button
-                                                key={i}
-                                                onClick={() => handlePageChange(i)}
-                                                className={`px-4 py-2 rounded-lg border-2 transition-colors ${currentPage === i
-                                                    ? 'bg-orange-500 border-orange-500 text-white font-semibold'
-                                                    : 'border-gray-300 hover:border-orange-500 hover:bg-orange-50'
-                                                    }`}
-                                            >
-                                                {i}
-                                            </button>
-                                        );
-                                    }
-
-                                    if (endPage < totalPages) {
-                                        if (endPage < totalPages - 1) {
-                                            pages.push(
-                                                <span key="ellipsis-end" className="px-2 text-gray-500">...</span>
-                                            );
-                                        }
-                                        pages.push(
-                                            <button
-                                                key={totalPages}
-                                                onClick={() => handlePageChange(totalPages)}
-                                                className="px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-orange-500 hover:bg-orange-50 transition-colors"
-                                            >
-                                                {totalPages}
-                                            </button>
-                                        );
-                                    }
-
-                                    return pages;
-                                })()}
-
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className="px-3 py-2 rounded-lg border-2 border-gray-300 hover:border-orange-500 hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-white"
-                                    aria-label="Další stránka"
-                                >
-                                    <ChevronRight className="w-5 h-5" />
+                                    {isLoadingMore ? (
+                                        <>
+                                            <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <span>Načítání...</span>
+                                        </>
+                                    ) : (
+                                        <span>Načíst další recepty</span>
+                                    )}
                                 </button>
                             </div>
                         )}
@@ -596,6 +524,17 @@ export function HomePage() {
                     </div>
                 )}
             </div>
+
+            {/* ✅ Tlačítko scroll nahoru */}
+            {showScrollTop && (
+                <button
+                    onClick={scrollToTop}
+                    className="fixed bottom-8 right-8 p-4 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 z-50 group"
+                    aria-label="Scrollovat nahoru"
+                >
+                    <ArrowUp className="w-6 h-6 group-hover:transform group-hover:-translate-y-1 transition-transform duration-200" />
+                </button>
+            )}
         </div>
     );
 }
