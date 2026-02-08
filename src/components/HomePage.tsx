@@ -13,6 +13,7 @@ import { authStorage } from '../services/auth';
 interface RecipeListReturnState {
     page: number;
     scrollToId: number;
+    activeTab?: 'all' | 'my' | 'favorites';
 }
 
 declare global {
@@ -41,9 +42,10 @@ export function HomePage() {
     const [currentSearchTags, setCurrentSearchTags] = useState<number[]>([]);
     const [currentSearchCategory, setCurrentSearchCategory] = useState<number | null>(null);
 
-    // ✅ NOVÉ: State pro oblíbené recepty
     const [favoriteRecipeIds, setFavoriteRecipeIds] = useState<Set<number>>(new Set());
     const favoritesLoadedRef = useRef(false);
+    const initialLoadDone = useRef(false);
+    const isLoadingRef = useRef(false); // ✅ NOVÉ: Prevence duplicitních načtení
 
     // ✅ 1. UseEffect: Načti uživatele při startu
     useEffect(() => {
@@ -53,34 +55,64 @@ export function HomePage() {
         }
     }, []);
 
-    // ✅ 2. UseEffect: Načti recepty při startu (+ scrollování)
+    // ✅ 2. UseEffect: Zpracování návratu z detailu
     useEffect(() => {
+        // Zamezení duplicitním načtením
+        if (isLoadingRef.current) {
+            // console.log('⚠️ Načítání již probíhá, přeskakuji...');
+            return;
+        }
+
         const state = location.state as RecipeListReturnState | null;
         const sessionData = sessionStorage.getItem('recipeListReturn_v2');
 
-        let returnPage = 1;
-        let scrollToId: number | null = null;
+        // console.log('🔍 Location state:', state);
+        // console.log('🔍 Session data:', sessionData);
+        // console.log('🔍 Aktuální activeTab:', activeTab);
 
-        if (state?.page) {
-            returnPage = state.page;
-            scrollToId = state.scrollToId || null;
-        } else if (sessionData) {
-            try {
-                const data: RecipeListReturnState = JSON.parse(sessionData);
-                returnPage = data.page || 1;
-                scrollToId = data.scrollToId || null;
-                sessionStorage.removeItem('recipeListReturn_v2');
-            } catch (e) {
-                console.error('Chyba při parsování sessionStorage:', e);
+        if (state?.page || sessionData) {
+            // Návrat z detailu
+            let returnPage = 1;
+            let scrollToId: number | null = null;
+            let returnTab: 'all' | 'my' | 'favorites' = 'all';
+
+            if (state?.page) {
+                returnPage = state.page;
+                scrollToId = state.scrollToId || null;
+                returnTab = state.activeTab || 'all';
+                // console.log('📌 Obnovuji z location.state:', { returnPage, scrollToId, returnTab });
+            } else if (sessionData) {
+                try {
+                    const data: RecipeListReturnState = JSON.parse(sessionData);
+                    returnPage = data.page || 1;
+                    scrollToId = data.scrollToId || null;
+                    returnTab = data.activeTab || 'all';
+                    sessionStorage.removeItem('recipeListReturn_v2');
+                    // console.log('📌 Obnovuji ze sessionStorage:', { returnPage, scrollToId, returnTab });
+                } catch (e) {
+                    console.error('Chyba při parsování sessionStorage:', e);
+                }
             }
-        }
 
-        loadRecipes(returnPage);
+            // console.log('✅ Nastavuji activeTab na:', returnTab);
+            setActiveTab(returnTab);
 
-        if (scrollToId) {
-            window._pendingScrollTo = scrollToId;
+            // console.log('✅ Volám loadRecipesForView s:', { view: returnTab, page: returnPage });
+            loadRecipesForView(returnTab, returnPage);
+
+            if (scrollToId) {
+                window._pendingScrollTo = scrollToId;
+            }
+
+            // Vyčistit state po zpracování
+            window.history.replaceState({}, document.title);
+        } else if (!initialLoadDone.current) {
+            // První načtení - bez uloženého stavu
+            // console.log('📌 První načtení - načítám všechny recepty');
+            loadRecipesForView('all', 1);
+            initialLoadDone.current = true;
         }
-    }, []);
+    }, [location.key]);
 
     useEffect(() => {
         const scrollToId = window._pendingScrollTo;
@@ -98,7 +130,6 @@ export function HomePage() {
                 }
 
                 delete window._pendingScrollTo;
-                window.history.replaceState({}, document.title);
             }, 300);
         }
     }, [recipes, loading]);
@@ -128,71 +159,78 @@ export function HomePage() {
         await loadRecipesForView(activeTab, page);
     };
 
-    // ✅ NOVÉ: Načte recepty pro konkrétní záložku
     const loadRecipesForView = async (view: 'all' | 'my' | 'favorites', page: number = 1): Promise<void> => {
+        // ✅ Zamezení duplicitním voláním
+        if (isLoadingRef.current) {
+            // console.warn('⚠️ Načítání již probíhá, přeskakuji duplicitní volání');
+            return;
+        }
+
         try {
+            isLoadingRef.current = true;
             setLoading(true);
-            favoritesLoadedRef.current = false; // ✅ Reset při načítání nové stránky
+            favoritesLoadedRef.current = false;
+
+            // console.log(`📌 === ZAČÁTEK NAČÍTÁNÍ ===`);
+            // console.log(`📌 Načítám recepty: view=${view}, page=${page}`);
 
             let data;
             if (view === 'favorites') {
-                // ✅ Načti oblíbené recepty
+               
                 data = await recipeApi.getFavoriteRecipes(page, recipesPerPage);
-                // console.log('📌 Načtené oblíbené recepty:', data.recipes.length);
+            
             } else {
-                // Načti běžné recepty
+                 
                 data = await recipeApi.getRecipes(page, recipesPerPage);
-                // console.log('📌 Načtené recepty:', data.recipes.length);
+                
             }
-
+ 
             setRecipes(data.recipes);
             setTotalPages(data.totalPages);
             setTotalRecipes(data.total);
             setCurrentPage(page);
             setError(null);
+          
 
-            // ✅ Načti stav oblíbených pro aktuální recepty
             if (user && view !== 'favorites') {
-                // console.log('📌 Načítám stav oblíbených pro uživatele:', user.name);
+                 
                 await loadFavoriteStatus(data.recipes);
                 favoritesLoadedRef.current = true;
             } else if (view === 'favorites') {
-                // Všechny recepty v záložce oblíbených jsou oblíbené
                 const ids = new Set(data.recipes.map(r => r.id));
-                // console.log('📌 Nastavuji oblíbené IDs:', Array.from(ids));
+                
                 setFavoriteRecipeIds(ids);
             }
+
+            
         } catch (err) {
+            console.error('❌ Chyba při načítání:', err);
             setError(err instanceof Error ? err.message : 'Nepodařilo se načíst recepty');
         } finally {
             setLoading(false);
+            isLoadingRef.current = false;
         }
     };
 
-    // ✅ OPTIMALIZOVÁNO: Načte všechny oblíbené recepty najednou
     const loadFavoriteStatus = async (recipesToCheck: Recipe[]) => {
         if (!user) {
-            // console.log('⚠️ Žádný user, nastavuji prázdný Set oblíbených');
+        
             setFavoriteRecipeIds(new Set());
             return;
         }
 
         try {
-            
-            // Načti VŠECHNY oblíbené recepty uživatele (jen první stránku pro rychlost)
+             
             const favoritesData = await recipeApi.getFavoriteRecipes(1, 100);
-             
+          
 
-            // Vytvoř Set ID všech oblíbených receptů
             const allFavoriteIds = new Set(favoritesData.recipes.map(r => r.id));
-             
+            
 
             setFavoriteRecipeIds(allFavoriteIds);
-
-            
+             
         } catch (err) {
             console.error('❌ Chyba při načítání stavu oblíbených:', err);
-            // V případě chyby zkus fallback - kontrola jednotlivých receptů
             try {
                
                 const checks = await Promise.all(
@@ -208,7 +246,7 @@ export function HomePage() {
                         .map(check => check.recipe_id)
                 );
 
-              
+               
                 setFavoriteRecipeIds(favoriteIds);
             } catch (fallbackErr) {
                 console.error('❌ Fallback také selhal:', fallbackErr);
@@ -216,7 +254,6 @@ export function HomePage() {
         }
     };
 
-    // ✅ NOVÉ: Handler pro změnu oblíbených
     const handleFavoriteChange = (recipeId: number, isFavorite: boolean) => {
        
         setFavoriteRecipeIds(prev => {
@@ -226,14 +263,12 @@ export function HomePage() {
             } else {
                 newSet.delete(recipeId);
 
-                // Pokud jsme v záložce oblíbených a recept byl odebrán, 
-                // odstraň ho ze seznamu
                 if (activeTab === 'favorites') {
                     setRecipes(prev => prev.filter(r => r.id !== recipeId));
                     setTotalRecipes(prev => prev - 1);
                 }
             }
-          
+           
             return newSet;
         });
     };
@@ -304,7 +339,6 @@ export function HomePage() {
             setTotalRecipes(data.total);
             setCurrentPage(1);
 
-            // ✅ Načti stav oblíbených pro výsledky hledání
             if (user) {
                 await loadFavoriteStatus(data.recipes);
             }
@@ -353,8 +387,11 @@ export function HomePage() {
     const handleRecipeClick = (recipeId: number) => {
         const returnState: RecipeListReturnState = {
             page: currentPage,
-            scrollToId: recipeId
+            scrollToId: recipeId,
+            activeTab: activeTab
         };
+
+        
         sessionStorage.setItem('recipeListReturn_v2', JSON.stringify(returnState));
 
         navigate(`/${recipeId}`, {
@@ -362,17 +399,15 @@ export function HomePage() {
         });
     };
 
-    // ✅ UPRAVENO: Přidána podpora pro záložku oblíbených
     const handleViewChange = (view: 'all' | 'my' | 'favorites') => {
-    
+        
         setActiveTab(view);
         setCurrentPage(1);
         setCurrentSearchQuery('');
         setCurrentSearchTags([]);
         setCurrentSearchCategory(null);
-        favoritesLoadedRef.current = false; // Reset pro novou záložku
+        favoritesLoadedRef.current = false;
 
-        // ✅ OPRAVA: Okamžitě načti recepty - předej view jako parametr
         loadRecipesForView(view, 1);
     };
 
@@ -381,11 +416,12 @@ export function HomePage() {
             return recipe.user_id === user.id;
         }
         if (activeTab === 'favorites') {
-            return true; // Již filtrováno API
+            return true; // API už vrací jen oblíbené
         }
         return true;
     });
 
+    
     return (
         <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
             {showRecipeForm && (
@@ -443,7 +479,6 @@ export function HomePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredRecipes.map(recipe => {
                                 const isFav = favoriteRecipeIds.has(recipe.id);
-                             
                                 return (
                                     <div key={recipe.id} id={`recipe-${recipe.id}`}>
                                         <RecipeCard

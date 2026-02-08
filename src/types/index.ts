@@ -111,14 +111,7 @@ export interface AuthResponse {
   user: User;
   token: string;
 }
-export interface RecipeDetailProps {
-  recipe: Recipe;
-  currentUser: User | null;
-  onBack: () => void;
-  onEdit: (recipe: Recipe) => void; // ✅ Potřebujeme toto
-  onDelete: (recipeId: number) => void;
-  onRecipeUpdate?: () => Promise<void>;
-}
+ 
 export interface RegisterData {
   name: string;
   email: string;
@@ -177,4 +170,13 @@ export interface HeaderProps {
   onCreateRecipe?: () => void;
   activeView?: "all" | "my" | "favorites"; // ✅ UPRAVENO
 }
- 
+ export interface RecipeDetailProps {
+   recipe: Recipe;
+   currentUser: User | null;
+   onBack: () => void;
+   onEdit: (recipe: Recipe) => void;
+   onDelete: (recipeId: number) => void;
+   onRecipeUpdate?: () => Promise<void>;
+   isFavorite?: boolean;
+   onFavoriteChange?: (recipeId: number, isFavorite: boolean) => void;
+ }

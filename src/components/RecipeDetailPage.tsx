@@ -1,5 +1,4 @@
-//frontend\src\components\RecipeDetailPage.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { RecipeDetail } from './RecipeDetail';
 import { RecipeForm } from './RecipeForm';
@@ -10,6 +9,7 @@ import { authStorage } from '../services/auth';
 interface RecipeListReturnState {
     page: number;
     scrollToId: number;
+    activeTab?: 'all' | 'my' | 'favorites';
 }
 
 export function RecipeDetailPage() {
@@ -21,16 +21,7 @@ export function RecipeDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showEditForm, setShowEditForm] = useState(false);
-
-    useEffect(() => {
-        const token = authStorage.getToken();
-        if (token) {
-            loadUser();
-        }
-        if (id) {
-            loadRecipe(parseInt(id));
-        }
-    }, [id]);
+    const [isFavorite, setIsFavorite] = useState(false);
 
     const loadUser = async () => {
         try {
@@ -55,18 +46,43 @@ export function RecipeDetailPage() {
         }
     };
 
+    const loadFavoriteStatus = useCallback(async () => {
+        if (!user || !recipe) return;
+
+        try {
+            const status = await recipeApi.checkFavoriteStatus(recipe.id);
+            setIsFavorite(status.is_favorite);
+        } catch (err) {
+            console.error('Chyba při načítání stavu oblíbených:', err);
+        }
+    }, [user, recipe]);
+
+    useEffect(() => {
+        const token = authStorage.getToken();
+        if (token) {
+            loadUser();
+        }
+        if (id) {
+            loadRecipe(parseInt(id));
+        }
+    }, [id]);
+
+    useEffect(() => {
+        if (user && recipe) {
+            loadFavoriteStatus();
+        }
+    }, [user, recipe, loadFavoriteStatus]);
+
     const handleBack = () => {
-        // Získáme parametry z location.state
         const state = location.state as RecipeListReturnState | null;
         const returnPage = state?.page || 1;
         const scrollToId = state?.scrollToId || (id ? parseInt(id) : 0);
+        const activeTab = state?.activeTab || 'all';
 
-        
-
-        // Vrátíme se na HomePage s state
         const returnState: RecipeListReturnState = {
             page: returnPage,
-            scrollToId: scrollToId
+            scrollToId: scrollToId,
+            activeTab: activeTab
         };
 
         navigate('/', { state: returnState });
@@ -81,10 +97,12 @@ export function RecipeDetailPage() {
             await recipeApi.deleteRecipe(recipeId);
             const state = location.state as RecipeListReturnState | null;
             const returnPage = state?.page || 1;
+            const activeTab = state?.activeTab || 'all';
 
             const returnState: RecipeListReturnState = {
                 page: returnPage,
-                scrollToId: 0 // Po smazání nescrollujeme
+                scrollToId: 0,
+                activeTab: activeTab
             };
 
             navigate('/', { state: returnState });
@@ -104,6 +122,11 @@ export function RecipeDetailPage() {
         if (id) {
             loadRecipe(parseInt(id));
         }
+    };
+
+    const handleFavoriteChange = async (_recipeId: number, newIsFavorite: boolean) => {
+        setIsFavorite(newIsFavorite);
+        await loadFavoriteStatus();
     };
 
     if (loading) {
@@ -149,6 +172,8 @@ export function RecipeDetailPage() {
                 onDelete={handleDelete}
                 currentUser={user}
                 onRecipeUpdate={handleRecipeUpdate}
+                isFavorite={isFavorite}
+                onFavoriteChange={handleFavoriteChange}
             />
         </>
     );

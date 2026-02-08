@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Clock, Users, ChefHat, Edit, Trash2, Plus, Minus, Check, Globe, Lock, Link2, Copy, X, Bookmark } from 'lucide-react';
-import type { RecipeDetailProps, Tag, Recipe  } from '../types';
+import { ArrowLeft, Clock, Users, ChefHat, Edit, Trash2, Plus, Minus, Check, Globe, Lock, Link2, Copy, X, Bookmark, Heart } from 'lucide-react';
+import type { RecipeDetailProps, Tag, Recipe } from '../types';
 import { recipeApi } from '../api/recipeApi';
 
 export const RecipeDetail: React.FC<RecipeDetailProps> = ({
@@ -9,9 +9,13 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     onEdit,
     onDelete,
     currentUser,
-    onRecipeUpdate
+  
+    isFavorite: initialIsFavorite = false,
+    onFavoriteChange
 }) => {
     const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
+    const [isFavorite, setIsFavorite] = useState(initialIsFavorite);
+    const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
 
     const isOwner: boolean = currentUser?.id === recipe.user_id;
 
@@ -22,6 +26,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     useEffect(() => {
         setRecipe(initialRecipe);
     }, [initialRecipe]);
+
+    useEffect(() => {
+        setIsFavorite(initialIsFavorite);
+    }, [initialIsFavorite]);
 
     const [servingsMultiplier, setServingsMultiplier] = useState<number>(1);
     const [currentServings, setCurrentServings] = useState<number>(recipe.servings);
@@ -36,6 +44,39 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     const [shareUrl, setShareUrl] = useState<string>('');
     const [isEnablingShare, setIsEnablingShare] = useState<boolean>(false);
     const [copySuccess, setCopySuccess] = useState<boolean>(false);
+
+    const handleFavoriteClick = async () => {
+        if (!currentUser) {
+            alert('Pro přidání do oblíbených se musíte přihlásit');
+            return;
+        }
+
+        if (isTogglingFavorite) return;
+
+        
+        setIsTogglingFavorite(true);
+
+        try {
+            if (isFavorite) {
+                
+                await recipeApi.removeFromFavorites(recipe.id);
+                setIsFavorite(false);
+                onFavoriteChange?.(recipe.id, false);
+                
+            } else {
+                 
+                await recipeApi.addToFavorites(recipe.id);
+                setIsFavorite(true);
+                onFavoriteChange?.(recipe.id, true);
+                
+            }
+        } catch (err) {
+            console.error('Chyba při změně oblíbených:', err);
+            alert(err instanceof Error ? err.message : 'Nepodařilo se změnit oblíbené');
+        } finally {
+            setIsTogglingFavorite(false);
+        }
+    };
 
     const handleDelete = async () => {
         if (!confirm('Opravdu chcete smazat tento recept? Tato akce je nevratná.')) return;
@@ -104,12 +145,18 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     };
 
     const handleEnableShare = async () => {
+        // Pokud je recept veřejný, jen zobrazíme jeho normální URL
+        if (recipe.visibility === 'public') {
+            const url = `${window.location.origin}/recepty/#/${recipe.id}`;
+            setShareUrl(url);
+            setShowShareModal(true);
+            return;
+        }
+
+        // Pro soukromé recepty vytvoříme share token
         setIsEnablingShare(true);
         try {
             const response = await recipeApi.enableShareLink(recipe.id);
-            const url = `${window.location.origin}/shared/${response.share_token}`;
-            setShareUrl(url);
-            setShowShareModal(true);
 
             setRecipe(prev => ({
                 ...prev,
@@ -117,9 +164,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                 share_token: response.share_token
             }));
 
-            if (onRecipeUpdate) {
-                await onRecipeUpdate();
-            }
+            const url = `${window.location.origin}/recepty/#/shared/${response.share_token}`;
+            setShareUrl(url);
+            setShowShareModal(true);
         } catch (err) {
             console.error('Chyba při povolení sdílení:', err);
             alert('Nepodařilo se povolit sdílený odkaz.');
@@ -134,31 +181,30 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
         try {
             await recipeApi.disableShareLink(recipe.id);
 
-            setRecipe(prev => {
-                const updated = {
-                    ...prev,
-                    visibility: 'private' as 'private' | 'public' | 'link',
-                    share_token: null
-                };
-                return updated;
-            });
+            setRecipe(prev => ({
+                ...prev,
+                visibility: 'private',
+                share_token: null
+            }));
 
             setShareUrl('');
             setShowShareModal(false);
 
-            if (onRecipeUpdate) {
-                await onRecipeUpdate();
-            }
+            // ODSTRANILI JSME volání onRecipeUpdate()
 
         } catch (err) {
-            console.error('❌ Chyba při rušení sdílení:', err);
+            console.error('Chyba při rušení sdílení:', err);
             alert('Nepodařilo se zrušit sdílený odkaz.');
         }
     };
 
     const handleShowExistingLink = () => {
-        if (recipe.share_token) {
-            const url = `${window.location.origin}/shared/${recipe.share_token}`;
+        if (recipe.visibility === 'public') {
+            const url = `${window.location.origin}/recepty/#/${recipe.id}`;
+            setShareUrl(url);
+            setShowShareModal(true);
+        } else if (recipe.share_token) {
+            const url = `${window.location.origin}/recepty/#/shared/${recipe.share_token}`;
             setShareUrl(url);
             setShowShareModal(true);
         }
@@ -233,23 +279,19 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
             }
         }
     };
-    // ✅ VYLEPŠENÁ FUNKCE: Odstraní zbytečné nuly a zobrazí max 2 desetinná místa
+
     const calculateAmount = (amount: string | null): string => {
         if (!amount) return '';
 
-        // Parsování čísla - parseFloat automaticky odstraní trailing zeros
         const numericAmount = parseFloat(amount);
         if (isNaN(numericAmount)) return amount;
 
-        // Výpočet nového množství
         const calculatedAmount = numericAmount * servingsMultiplier;
 
-        // Pokud je celé číslo (včetně případů jako 2.0, 3.00), vrať čisté celé číslo
         if (Number.isInteger(calculatedAmount)) {
             return String(Math.round(calculatedAmount));
         }
 
-        // Pro desetinná čísla: zaokrouhli na 2 místa a odstraň trailing zeros pomocí Number()
         const rounded = Number(calculatedAmount.toFixed(1));
         return String(rounded);
     };
@@ -304,6 +346,24 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                             <span className="hidden sm:inline">Zpět na recepty</span>
                             <span className="sm:hidden">Zpět</span>
                         </button>
+
+                        {/* TLAČÍTKO OBLÍBENÝCH - ZOBRAZÍ SE PRO VŠECHNY PŘIHLÁŠENÉ UŽIVATELE */}
+                        {currentUser && (
+                            <button
+                                onClick={handleFavoriteClick}
+                                disabled={isTogglingFavorite}
+                                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold shadow-lg transition-all transform hover:scale-105 ${isFavorite
+                                        ? 'bg-red-500 text-white hover:bg-red-600'
+                                        : 'bg-white text-gray-600 hover:bg-red-50 hover:text-red-500 border-2 border-gray-200'
+                                    } ${isTogglingFavorite ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title={isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
+                            >
+                                <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                                <span className="hidden sm:inline text-sm">
+                                    {isFavorite ? 'Oblíbené' : 'Přidat do oblíbených'}
+                                </span>
+                            </button>
+                        )}
                     </div>
                 </div>
             </header>
@@ -481,10 +541,13 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                             </div>
 
                             {/* Ingredients List - Responsive */}
-                            {/* <div className="bg-orange-50 rounded-xl sm:rounded-2xl p-3 sm:p-6">
-                                <ul className="space-y-2 sm:space-y-3">
+                            <div className="bg-orange-50 rounded-xl sm:rounded-2xl p-3 sm:p-6">
+                                <div className="space-y-2 sm:space-y-3">
                                     {recipe.ingredients?.map((ingredient) => (
-                                        <li key={ingredient.id} className="flex items-start gap-2 sm:gap-3 group">
+                                        <div
+                                            key={ingredient.id}
+                                            className="flex items-start gap-2 sm:gap-3 group"
+                                        >
                                             <button
                                                 onClick={() => toggleIngredient(ingredient.id)}
                                                 className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 mt-0.5 transition-all ${checkedIngredients.has(ingredient.id)
@@ -496,58 +559,18 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                                                     <Check className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                                 )}
                                             </button>
-                                            <span className={`text-gray-700 text-sm sm:text-base transition-all ${checkedIngredients.has(ingredient.id) ? 'line-through opacity-50' : ''
-                                                }`}>
-                                                {servingsMultiplier !== 1 && ingredient.amount ? (
-                                                    <span className="font-semibold text-blue-600">
-                                                        {calculateAmount(ingredient.amount)}
-                                                    </span>
-                                                ) : (
-                                                    ingredient.amount
-                                                )}{' '}
-                                                {ingredient.unit} {ingredient.name}
-                                                {ingredient.note && ` - ${ingredient.note}`}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div> */}
-
-
-                            {/* ✅ NOVÝ TABULKOVÝ LAYOUT PRO INGREDIENCE */}
-                            <div className="bg-orange-50 rounded-xl sm:rounded-2xl p-3 sm:p-6">
-                                <div className="space-y-2 sm:space-y-3">
-                                    {recipe.ingredients?.map((ingredient) => (
-                                        <div
-                                            key={ingredient.id}
-                                            className="flex items-start gap-2 sm:gap-3 group"
-                                        >
-                                            <button
-                                                onClick={() => toggleIngredient(ingredient.id)}
-                                                className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 mt-0.5 transition-all ${checkedIngredients.has(ingredient.id)
-                                                        ? 'bg-orange-500 border-orange-500'
-                                                        : 'border-orange-300 hover:border-orange-500'
-                                                    }`}
-                                            >
-                                                {checkedIngredients.has(ingredient.id) && (
-                                                    <Check className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                                                )}
-                                            </button>
 
                                             <div className={`flex-1 flex gap-2 sm:gap-2 items-baseline text-sm sm:text-base transition-all ${checkedIngredients.has(ingredient.id) ? 'line-through opacity-50' : ''
                                                 }`}>
-                                                {/* Množství */}
                                                 <span className={`text-right font-semibold w-12 sm:w-14 flex-shrink-0 ${servingsMultiplier !== 1 && ingredient.amount ? 'text-blue-600' : 'text-gray-700'
                                                     }`}>
                                                     {ingredient.amount ? calculateAmount(ingredient.amount) : ''}
                                                 </span>
 
-                                                {/* Jednotka */}
                                                 <span className="text-gray-600 w-16 sm:w-20 flex-shrink-0">
                                                     {ingredient.unit || ''}
                                                 </span>
 
-                                                {/* Název a poznámka */}
                                                 <span className="text-gray-700 flex-1">
                                                     {ingredient.name}
                                                     {ingredient.note && (
@@ -621,10 +644,12 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                             </button>
                         </div>
 
+                       
                         <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">
-                            Kdokoliv s tímto odkazem může zobrazit váš recept.
+                            {recipe.visibility === 'public'
+                                ? 'Tento recept je veřejný. Můžete sdílet tento odkaz:'
+                                : 'Kdokoliv s tímto odkazem může zobrazit váš recept.'}
                         </p>
-
                         <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 break-all">
                             <code className="text-xs sm:text-sm text-gray-700">{shareUrl}</code>
                         </div>
@@ -647,12 +672,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                                 )}
                             </button>
 
-                            <button
-                                onClick={handleDisableShare}
-                                className="px-3 sm:px-4 py-2.5 sm:py-3 bg-red-500 text-white rounded-lg sm:rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all text-sm sm:text-base"
-                            >
-                                Zrušit sdílení
-                            </button>
+                            {recipe.visibility !== 'public' && (
+                                <button
+                                    onClick={handleDisableShare}
+                                    className="px-3 sm:px-4 py-2.5 sm:py-3 bg-red-500 text-white rounded-lg sm:rounded-xl font-semibold shadow-lg hover:bg-red-600 transition-all text-sm sm:text-base"
+                                >
+                                    Zrušit sdílení
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
